@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <gsl/gsl_integration.h>
 
 int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                 double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, double time_cooler,
@@ -104,62 +105,43 @@ struct int_info {
 	double width;   //A priori 1e5
 };
 
-double trap_integral(double(*f)(int_info II),int_info II){
-
-	int n = 500;
-	double min = -1e7;
-	double max = 1e7;
-
-	double step = (max - min) / n;
-
-    //Use trapezoidal integration
-	II.v_e = min;
-	double area = f(II);
-	II.v_e = max;
-	area += f(II);
-
-	for (int i=1; i < n; i++){
-		II.v_e = min + i*step;
-		area += 2*f(II);
-	}
-	return (step/2)*area;
-}
-
-double DS_trans_integrand(int_info II){
+double DS_trans_integrand(double v_e, void * params){
 	//Integrating over v_e
 
-	double U = sqrt(II.V_trans*II.V_trans + (II.V_long-II.v_e)*(II.V_long-II.v_e));
-	double integrand = (II.V_trans * (II.V_trans*II.V_trans - 2*(II.V_long-II.v_e)*(II.V_long-II.v_e))) / pow(U,5);
+	struct int_info *p = (struct int_info *)params;
+	double U = sqrt(p.V_trans*p.V_trans + (p.V_long-p.v_e)*(p.V_long-p.v_e));
+	double integrand = (p.V_trans * (p.V_trans*p.V_trans - 2*(p.V_long-p.v_e)*(p.V_long-p.v_e))) / pow(U,5);
 
 	//Now calculate gaussian PDF of the electron bunch (centered on 0 with standard deviation width)
 	double pdf = 1.0 / (sqrt(2.0 * k_pi));
-	pdf *= exp(-(II.v_e * II.v_e) / (2.0 * II.width));
+	pdf *= exp(-(p.v_e * p.v_e) / (2.0 * p.width));
 
 	return integrand * pdf;
 }
 
-double DS_long_integrand(int_info II){
+double DS_long_integrand(double v_e, void * params){
 	//Integrating over v_e
+	struct int_info *p = (struct int_info *)params;
 
-	double U = sqrt(II.V_trans*II.V_trans + (II.V_long-II.v_e)*(II.V_long-II.v_e));
+	double U = sqrt(p.V_trans*p.V_trans + (p.V_long-p.v_e)*(p.V_long-p.v_e));
 	double integrand;
-	double V_ion = sqrt(II.V_trans*II.V_trans + II.V_long*II.V_long);
-	if (II.V_trans < 1.0){
-		integrand = -2 * II.V_long * exp((-II.V_long*II.V_long) / (2*II.Delta_e*II.Delta_e));
-		integrand /= sqrt(2*k_pi) * pow(II.Delta_e,3);
+	double V_ion = sqrt(p.V_trans*p.V_trans + p.V_long*p.V_long);
+	if (p.V_trans < 1.0){
+		integrand = -2 * p.V_long * exp((-p.V_long*p.V_long) / (2*p.Delta_e*p.Delta_e));
+		integrand /= sqrt(2*k_pi) * pow(p.Delta_e,3);
 	}
 
-	else if (V_ion > (100*II.v_e)){
-		integrand = 3*(II.V_trans*II.V_trans)*(II.V_long * II.v_e)/pow(U,5);
-		integrand += 2*(II.V_long - II.v_e) / pow(U,3);
+	else if (V_ion > (100*p.v_e)){
+		integrand = 3*(p.V_trans*p.V_trans)*(p.V_long * p.v_e)/pow(U,5);
+		integrand += 2*(p.V_long - p.v_e) / pow(U,3);
 	}
 	else{
-		integrand = 3*(II.V_trans*II.V_trans)*(II.V_long * II.v_e)/pow(U,5);
+		integrand = 3*(p.V_trans*p.V_trans)*(p.V_long * p.v_e)/pow(U,5);
 	}
 
 	//Now calculate gaussian PDF of the electron bunch (centered on 0 with standard deviation width)
 	double pdf = 1.0 / (sqrt(2.0 * k_pi));
-	pdf *= exp(-(II.v_e * II.v_e) / (2.0 * II.width));
+	pdf *= exp(-(p.v_e * p.v_e) / (2.0 * p.width));
 
 	return integrand * pdf;
 }
@@ -190,15 +172,28 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
 
         double lc = log((rho_max+rho_min+rho_L)/(rho_min+rho_L));   //Coulomb Logarithm
 
-        int_info II;
-        II.V_trans = v_tr[i];
-        II.V_long  = v_long[i];
-        II.Delta_e = sqrt(dlt2_eff_e);
-        II.width   = 1E5;
+        int_info params;
+        params.V_trans = v_tr[i];
+        params.V_long  = v_long[i];
+        params.Delta_e = sqrt(dlt2_eff_e);
+        params.width   = 1E5;
+
+        gsl_integration_workspace *w = gsl_integration_workspace_alloc(100);
+        double result_trans,error;
+        gsl_function F;
+
+        F.function = &DS_trans_integrand;
+        F.params = &params;
+        //Integrate over the infinite interval
+        gsl_integration_qagi(&F, 1, 1e-7,1e-7,100,w,&result_trans,&error);
+
+        F.function = &DS_long_integrand;
+        /Integrate over the infinite interval
+        gsl_integration_qagi(&F, 1, 1e-7,1e-7,100,w,&result_long,&error);
 
 
-		force_tr[i] = f_const * charge_number * charge_number * trap_integral(DS_trans_integrand,II);
-		force_long[i] = f_const * charge_number * charge_number * trap_integral(DS_long_integrand,II);
+		force_tr[i] = f_const * charge_number * charge_number * result_trans;
+		force_long[i] = f_const * charge_number * charge_number * result_long;
 	}
 	return 0;
 }
