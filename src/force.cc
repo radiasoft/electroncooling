@@ -109,12 +109,12 @@ double DS_trans_integrand(double v_e, void * params){
 	//Integrating over v_e
 
 	struct int_info *p = (struct int_info *)params;
-	double U = sqrt(p.V_trans*p.V_trans + (p.V_long-p.v_e)*(p.V_long-p.v_e));
-	double integrand = (p.V_trans * (p.V_trans*p.V_trans - 2*(p.V_long-p.v_e)*(p.V_long-p.v_e))) / pow(U,5);
+	double U = sqrt(p->V_trans*p->V_trans + (p->V_long - p->v_e)*(p->V_long - p->v_e));
+	double integrand = (p->V_trans * (p->V_trans*p->V_trans - 2*(p->V_long - p->v_e)*(p->V_long - p->v_e))) / pow(U,5);
 
 	//Now calculate gaussian PDF of the electron bunch (centered on 0 with standard deviation width)
 	double pdf = 1.0 / (sqrt(2.0 * k_pi));
-	pdf *= exp(-(p.v_e * p.v_e) / (2.0 * p.width));
+	pdf *= exp(-(p->v_e * p->v_e) / (2.0 * p->width));
 
 	return integrand * pdf;
 }
@@ -123,25 +123,25 @@ double DS_long_integrand(double v_e, void * params){
 	//Integrating over v_e
 	struct int_info *p = (struct int_info *)params;
 
-	double U = sqrt(p.V_trans*p.V_trans + (p.V_long-p.v_e)*(p.V_long-p.v_e));
+	double U = sqrt(p->V_trans*p->V_trans + (p->V_long-p->v_e)*(p->V_long-p->v_e));
 	double integrand;
-	double V_ion = sqrt(p.V_trans*p.V_trans + p.V_long*p.V_long);
-	if (p.V_trans < 1.0){
-		integrand = -2 * p.V_long * exp((-p.V_long*p.V_long) / (2*p.Delta_e*p.Delta_e));
-		integrand /= sqrt(2*k_pi) * pow(p.Delta_e,3);
+	double V_ion = sqrt(p->V_trans*p->V_trans + p->V_long*p->V_long);
+	if (p->V_trans < 1.0){
+		integrand = -2 * p->V_long * exp((-p->V_long*p->V_long) / (2*p->Delta_e*p->Delta_e));
+		integrand /= sqrt(2*k_pi) * pow(p->Delta_e,3);
 	}
 
-	else if (V_ion > (100*p.v_e)){
-		integrand = 3*(p.V_trans*p.V_trans)*(p.V_long * p.v_e)/pow(U,5);
-		integrand += 2*(p.V_long - p.v_e) / pow(U,3);
+	else if (V_ion > (100*p->v_e)){
+		integrand = 3*(p->V_trans*p->V_trans)*(p->V_long * p->v_e)/pow(U,5);
+		integrand += 2*(p->V_long - p->v_e) / pow(U,3);
 	}
 	else{
-		integrand = 3*(p.V_trans*p.V_trans)*(p.V_long * p.v_e)/pow(U,5);
+		integrand = 3*(p->V_trans*p->V_trans)*(p->V_long * p->v_e)/pow(U,5);
 	}
 
 	//Now calculate gaussian PDF of the electron bunch (centered on 0 with standard deviation width)
 	double pdf = 1.0 / (sqrt(2.0 * k_pi));
-	pdf *= exp(-(p.v_e * p.v_e) / (2.0 * p.width));
+	pdf *= exp(-(p->v_e * p->v_e) / (2.0 * p->width));
 
 	return integrand * pdf;
 }
@@ -179,17 +179,16 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
         params.width   = 1E5;
 
         gsl_integration_workspace *w = gsl_integration_workspace_alloc(100);
-        double result_trans,error;
+        double result_trans,result_long,error;
         gsl_function F;
 
         F.function = &DS_trans_integrand;
         F.params = &params;
         //Integrate over the infinite interval
-        gsl_integration_qagi(&F, 1, 1e-7,1e-7,100,w,&result_trans,&error);
+        gsl_integration_qagi(&F, 1, 1e-7,100,w,&result_trans,&error);
 
         F.function = &DS_long_integrand;
-        /Integrate over the infinite interval
-        gsl_integration_qagi(&F, 1, 1e-7,1e-7,100,w,&result_long,&error);
+        gsl_integration_qagi(&F, 1, 1e-7,100,w,&result_long,&error);
 
 
 		force_tr[i] = f_const * charge_number * charge_number * result_trans;
@@ -248,4 +247,3 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
     }
     return 0;
 }
-
