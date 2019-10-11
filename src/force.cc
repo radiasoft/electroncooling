@@ -151,16 +151,16 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
         double *force_tr, double *force_long) {
 
 	double f_const = -2 * k_pi /(k_me*1e6);
-    double v2_eff_e = temperature*k_c*k_c / (k_me*1e6);
-    double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
-    double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
-
+	double v2_eff_e = temperature*k_c*k_c / (k_me*1e6);
+    	double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
+    	double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
+	
 	for(unsigned long int i=0;i<ion_number; ++i){
 
 		double rho_L  = k_c * (k_me*1e6) * d_perp_e / (k_e * magnetic_field);
 		double v2     = v_tr[i]*v_tr[i] + v_long[i]*v_long[i];
 		double dlt    = v2 + dlt2_eff_e;
-        double rho_min = rho_min_const/dlt;
+        	double rho_min = rho_min_const/dlt;
 		double omega_p = sqrt(4 * k_pi * density_e[i] * k_e*k_e / (k_me*1e6));
 		double rho_sh = sqrt(v2)/omega_p;
 
@@ -168,29 +168,32 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
 		double rho_max = rho_sh;
 		if (rho_sh < rho_max_2) rho_max = rho_max_2;
 		double rho_max_3 = dlt*time_cooler;
-        if(rho_max > rho_max_3) rho_max = rho_max_3;
+        	if(rho_max > rho_max_3) rho_max = rho_max_3;
 
-        double lc = log((rho_max+rho_min+rho_L)/(rho_min+rho_L));   //Coulomb Logarithm
+       	 	double lc = log((rho_max+rho_min+rho_L)/(rho_min+rho_L));   //Coulomb Logarithm
 
-        int_info params;
-        params.V_trans = v_tr[i];
-        params.V_long  = v_long[i];
-        params.Delta_e = sqrt(dlt2_eff_e);
-        params.width   = 1E5;
+        	int_info params;
+        	params.V_trans = v_tr[i];
+        	params.V_long  = v_long[i];
+        	params.Delta_e = sqrt(dlt2_eff_e);
+        	params.width   = 1E5;
 
-        gsl_integration_workspace *w = gsl_integration_workspace_alloc(100);
-        double result_trans,result_long,error;
-        gsl_function F;
+        	gsl_integration_workspace *w = gsl_integration_workspace_alloc(100);
+        	double result_trans,result_long,error;
+        	gsl_function F;
 
-        F.function = &DS_trans_integrand;
-        F.params = &params;
-        //Integrate over the infinite interval
-        gsl_integration_qagi(&F, 1, 1e-7,100,w,&result_trans,&error);
+        	F.function = &DS_trans_integrand;
+        	F.params = &params;
+        	//Integrate over the infinite interval
+        	gsl_integration_qagi(&F, 1, 1e-7,100,w,&result_trans,&error);
 
-        F.function = &DS_long_integrand;
-        gsl_integration_qagi(&F, 1, 1e-7,100,w,&result_long,&error);
+        	F.function = &DS_long_integrand;
+        	gsl_integration_qagi(&F, 1, 1e-7,100,w,&result_long,&error);
 
-
+		if(i<10000){
+			std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<params.Delta_e<<", "<<result_trans<<", "<<result_long<<std::endl;
+		}
+		//Can't use charge number here, it's charge not Z
 		force_tr[i] = f_const * charge_number * charge_number * result_trans;
 		force_long[i] = f_const * charge_number * charge_number * result_long;
 	}
