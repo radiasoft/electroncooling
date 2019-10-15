@@ -39,8 +39,8 @@ int main(int argc, char** argv) {
   //********************************
 
   //define coasting 12C6+ beam
-  int n_charge = 6;
-  double n_mass = 79;
+  int n_charge = 79;
+  double n_mass = 197;
   double kinetic_energy = 120.0 * 1000; //Energy in MeV (120 GeV from Main Injector)
   double gamma = 1+kinetic_energy/(n_mass*k_u);
   double beta = sqrt(1-1/(gamma*gamma));
@@ -52,66 +52,65 @@ int main(int argc, char** argv) {
   Beam c_beam(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, n_ptcl);
 
   //define the ring
-  std::string filename = "csrm.tfs";
+  std::string filename = "Booster.tfs";
   Lattice lattice(filename);
   Ring ring(lattice, c_beam);
 
   //define the cooler
   double cooler_length = 10;//3.4;
   double n_section = 1;
-  double magnetic_field = 5;//0.039;
+  double magnetic_field = 1;//0.039;
   double beta_h = 10;
   double beta_v = 10;
   double dis_h = 0; //dispersion - definitions not required
-  double dis_v = 0; 
+  double dis_v = 0;
   Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v);
 
-  //We want to test a gaussian bunch for Derbenev & Skrinsky   
-  double current = 0.03;
-  double radius = 0.025;
-  double neutralisation = 0;
-  
-  //unused - vesigial from original main.cc
-  UniformCylinder uniform_cylinder(current, radius, neutralisation);
-  
+ //unused - vesigial from original main.cc
+//  double current = 0.03;
+//  double radius = 0.025;
+//  double neutralisation = 0;
+//  UniformCylinder uniform_cylinder(current, radius, neutralisation);
+
+  //We want to test a gaussian bunch for Derbenev & Skrinsky
   //made up numbers, just trying to figure out what gaussian bunch does
   double sigma_x = 1.5e-2; //RMS bunch size in meters
   double sigma_y = 1.5e-2;
   double sigma_s = 2e-2;
-  double n_particle = 1e8;
-	
+  double n_particle = 1e7;
+
   GaussianBunch gb(n_particle,sigma_x,sigma_y,sigma_s);
 
-    
   double gamma_e = c_beam.gamma();
-  double tmp_tr = 0.5; //Transverse temperature
+  double tmp_tr = 0.1; //Transverse temperature
   double tmp_long = 0.1; //longitudinal temperature
-  EBeam e_beam(gamma_e, tmp_tr, tmp_long, gb);//uniform_cylinder);
+  EBeam e_beam(gamma_e, tmp_tr, tmp_long, gb); //uniform_cylinder);
 
-    
   //define cooling model
-    
+
   //Here, the constructor signifies the monte carlo method for rate calculation
-  unsigned int n_sample = 5000;
-  EcoolRateParas ecool_rate_paras(n_sample);
+  //unsigned int n_sample = 5000;
+  //EcoolRateParas ecool_rate_paras(n_sample);
 
   //Here, the constructor signifies the single-particle method of rate calculation.
-  // The n's are the number of different values for single particles sampling the phase space  
- //unsigned int n_tr = 100; //number of phi for transverse direction
- // unsigned int n_long = 100; //number of phi for longitudinal direction
- // EcoolRateParas ecool_rate_paras(n_tr, n_long);
+  // The n's are the number of different values for single particles sampling the phase space
+  unsigned int n_tr = 50; //number of phi for transverse direction
+  unsigned int n_long = 50; //number of phi for longitudinal direction
+  EcoolRateParas ecool_rate_paras(n_tr, n_long);
 
-  ForceParas force_paras(ForceFormula::PARKHOMCHUK);
   double rate_x, rate_y, rate_s;
-  ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
-  std::cout<<"Parkhomchuk model:"<<std::endl;
-  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
-
-  ForceParas force_parasDS(ForceFormula::DERBENEVSKRINSKY);
-  ecooling_rate(ecool_rate_paras, force_parasDS, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
-//  std::cout<<"Derbenev-Skrinsky model:"<<std::endl;
-//  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
-
+  if ( argc > 1){
+      ForceParas force_paras(ForceFormula::PARKHOMCHUK);
+      ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+      std::cout<<"Parkhomchuk model:"<<std::endl;
+      std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
+  }
+   else{
+      ForceParas force_parasDS(ForceFormula::DERBENEVSKRINSKY);
+      ecooling_rate(ecool_rate_paras, force_parasDS, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+      std::cout<<"Derbenev-Skrinsky model:"<<std::endl;
+      std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
+   }
 
 
     //Pause the system
