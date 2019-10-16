@@ -156,8 +156,8 @@ double DS_long_integrand(double v_e, void * params){
 
 int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
         double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
-        double *force_tr, double *force_long) {
-
+        double *force_tr, double *force_long) {    
+    
   double f_const = -2 * k_pi * charge_number*charge_number * pow(k_e,4)/(k_me * 1e6);
   double v2_eff_e = temperature * k_c*k_c / (k_me * 1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
@@ -179,15 +179,20 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       double rho_max_3 = dlt*time_cooler;
       if(rho_max > rho_max_3) rho_max = rho_max_3;
 
-      double lc = log((rho_max+rho_min+rho_L)/(rho_min+rho_L));   //Coulomb Logarithm
-
+      //The impact parameter of the mean radius of electron larmor rotation
+      double rho_trans = k_c * k_me*1e6 * d_perp_e;
+      rho_trans /= k_e * magnetic_field;
+        
+      //Maximum impact parameter, BETACOOL eq. (3.47)
+      double lm = log(rho_max/rho_trans);
+        
       int_info params;
       params.V_trans = v_tr[i];
       params.V_long  = v_long[i];
       params.Delta_e = sqrt(dlt2_eff_e);
       params.width   = 1e5;  // is this RMS bunch width passed as a function argument?
 
-      unsigned int space_size =1e4;
+      unsigned int space_size =100;
       gsl_integration_workspace *w = gsl_integration_workspace_alloc(space_size);
       double result_trans,result_long,error;
       gsl_function F;
@@ -200,8 +205,8 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       F.function = &DS_long_integrand;
       gsl_integration_qagi(&F, 1, 1e-7,space_size,w,&result_long,&error);
 
-      force_tr[i] = f_const * lc * density_e[i] * result_trans;
-      force_long[i] = f_const * lc * density_e[i] * result_long;
+      force_tr[i] = f_const * lm * density_e[i] * result_trans;
+      force_long[i] = f_const * lm * density_e[i] * result_long;
 
       //std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<params.Delta_e<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
 
