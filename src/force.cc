@@ -88,7 +88,7 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
             force_tr[i] = f*v_tr[i];
             force_long[i] = f*v_long[i];
 
-            std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<f*v_tr[i]<<", "<<f*v_long[i]<<std::endl;
+            //std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<f*v_tr[i]<<", "<<f*v_long[i]<<std::endl;
 
         }
         else{
@@ -205,7 +205,7 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
           
       gsl_integration_workspace_free(w);
         
-      std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
+      //std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
     }
     return 0;
 }
