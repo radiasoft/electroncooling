@@ -62,7 +62,7 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
     double f_const = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
     double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
     double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
-    double rho_lamor = k_me*1e6*d_perp_e/(magnetic_field*k_c*k_c);
+    double rho_lamor = (k_me*1e6)*d_perp_e/(magnetic_field*k_c*k_c);
     double wp_const = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
     double rho_min_const = charge_number * k_e * k_ke * k_c*k_c/(k_me*1e6);
 
@@ -108,41 +108,44 @@ struct int_info {
 	double width; 
 };
 
-double DS_trans_integrand(double v_e, void * params){
-	//Integrating over v_e
-	struct int_info *p = (struct int_info *)params;
-	double U = sqrt(p->V_trans*p->V_trans + (p->V_long - v_e)*(p->V_long - v_e));
-	double integrand = (p->V_trans * (p->V_trans*p->V_trans - 2*(p->V_long - v_e)*(p->V_long - v_e)));
+double bunch_shape(double v_e,void *params){
 
-    integrand /= pow(U,5);
-    //Now calculate gaussian PDF of the electron bunch (centered on 0 with standard deviation width)
-	double pdf = 1.0 / (sqrt(2.0 * k_pi) * p->width);
+    struct int_info *p = (struct int_info *)params;
+    double pdf = 1.0 / p->width;
 	pdf *= exp(-(v_e * v_e) / (2.0 * p->width*p->width));
-
-    return integrand * pdf;
+    
+    return pdf;
 }
 
-double DS_long_integrand(double v_e, void * params){
-	//Integrating over v_e
-	struct int_info *p = (struct int_info *)params;
+double DS_trans_integrand(double alpha,void *params){
+    //Using Pestrikov's trick to change the integration variable
 
-	double U = sqrt(p->V_trans*p->V_trans + (p->V_long - v_e)*(p->V_long - v_e));
-	double integrand;
-	double V_ion = sqrt(p->V_trans*p->V_trans + p->V_long*p->V_long);
-	
-	if (abs(V_ion) > (1e5*v_e)){ //supposed to be the V_ion >> d_paral_e limit, but by how much?
-		integrand = 3*(p->V_trans*p->V_trans)*(p->V_long - v_e)/pow(U,5);
-		integrand += 2*(p->V_long - v_e) / pow(U,3);
-	}
-	else{
-		integrand = 3*(p->V_trans*p->V_trans)*(p->V_long - v_e)/pow(U,5);
-    }
+    struct int_info *p = (struct int_info *)params;    
+    
+    double y = p->V_long / p->width;
+    double z = p->V_trans / p->width;
+    double x = y + abs(z)*tan(alpha);
+    
+    double integrand = tan(alpha)*(y*cos(alpha) + abs(z)*sin(alpha));
+    integrand *= exp(-0.5*pow(y+abs(z)*tan(alpha),2));
+    integrand *= -copysign(1,z);
+    
+    return integrand;    
+}
 
-	//Now calculate gaussian PDF of the electron bunch (centered on 0 with standard deviation width)
-	double pdf = 1.0 / (sqrt(2.0 * k_pi) * p->width);
-	pdf *= exp(-(v_e * v_e) / (2.0 * p->width*p->width));
+double DS_long_integrand(double alpha, void *params){
+    //Using Pestrikov's trick to change the integration variable
 
-	return integrand * pdf;
+    struct int_info *p = (struct int_info *)params;    
+    
+    double y = p->V_long / p->width;
+    double z = p->V_trans / p->width;
+    double x = y + abs(z)*tan(alpha);
+    
+    double integrand = y*cos(alpha) + abs(z)*sin(alpha);
+    integrand *= exp(-0.5*pow(y+abs(z)*tan(alpha),2));
+    
+   return integrand; 
 }
 
 int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
@@ -150,12 +153,13 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
         double *force_tr, double *force_long) {    
     
   //Constant term for Parkhomchuk functions, above
-  double f_const = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
-  double v2_eff_e = temperature * k_c*k_c / (k_me*1e6);
+  double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
+  //double f_const = 2 * k_pi*charge_number*charge_number * pow(k_e,4)/(k_me * 1e6);
+  double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
-  double rho_L   = (k_me*1e6) * d_perp_e / (k_c*k_c * magnetic_field);
-  double wp_const = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
-
+  double rho_L      = (k_me*1e6) * d_perp_e / (k_c*k_c * magnetic_field);
+  double wp_const   = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
+    
     for(unsigned long int i=0;i<ion_number; ++i){
 
       //Calculate rho_max as in the Parkhomchuk model
@@ -173,55 +177,35 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       //  This has been brought outside of the integrand
       double lm = log(rho_max/rho_L); //value is ~11      
         
-      //Catch the asymptotic cases to simplify the calculation
-        
-      //A couple of these cases have factor-of-pi corrections to the f_const.
-      // I've made it explicit where those are.
-      if(v_tr[i] == 0.0){ //The singularity case
-          double f = 1 /sqrt(2*k_pi) * pow(d_paral_e,3);
-          f *= exp(-(v_long[i]*v_long[i])/(2*d_paral_e*d_paral_e));
-          force_tr[i] = f_const * k_pi * lm * f;
-          
-          f = v_long[i] / density_e[i] * pow(d_paral_e,3);     
-          force_long[i] = (sqrt(2*k_pi)/2) * f_const * lm * f;
-      }
-      else if(sqrt(v2) > 10000 * d_paral_e){ //The electron distribution is effectively a delta function
-         double f = v_tr[i] / pow(v2,3/2);
-          f *= (v_tr[i]*v_tr[i] - 2*v_long[i]*v_long[i]) / v2;
-          force_tr[i] = f_const * (k_pi / 2) * lm * f;
-
-          f = v_long[i] / pow(v2,3/2);
-          f *= (3*v_tr[i]*v_tr[i] * lm / v2) + 2;
-          force_long[i] = f_const * (k_pi / 2) * f;
-      }
       //In the middle range where we must evaluate the integral
-      else{         
-          int_info params;
-          params.V_trans = v_tr[i]; //Ion velocity components
-          params.V_long  = v_long[i];
-          params.width = d_paral_e; //The electron bunch width RMS
+         
+      int_info params;
+      params.V_trans = v_tr[i]; //Ion velocity components
+      params.V_long  = v_long[i];
+      params.width = d_paral_e; //The electron bunch width RMS
         
-          unsigned int space_size = 100;
-          gsl_integration_workspace *w = gsl_integration_workspace_alloc(space_size);
-          double result_trans,result_long,error_trans,error_long;
-          gsl_function F;
+      unsigned int space_size = 100;
+      gsl_integration_workspace *w = gsl_integration_workspace_alloc(space_size);
+      double result_trans,result_long,error_trans,error_long;
+      gsl_function F;
 
-          F.function = &DS_trans_integrand;
-          F.params = &params;
-          //Integrate over the infinite interval
-          gsl_integration_qagi(&F, 1, 1e-7,space_size,w,&result_trans,&error_trans);
+      F.params = &params;
+      F.function = &DS_trans_integrand;
 
-          F.function = &DS_long_integrand;
-          gsl_integration_qagi(&F, 1, 1e-7,space_size,w,&result_long,&error_long);
-
-          //The factor of pi/2 comes from the difference between the constants
-          //used in Parkhomchuk with the constants used in the D&S integrals
-          force_tr[i] = -f_const * (k_pi/2) * lm * density_e[i] * result_trans;
-          force_long[i] = f_const * (k_pi/2) * lm * density_e[i] * result_long;        
-
-          gsl_integration_workspace_free(w);
-        }
-        std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
+      gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_trans,&error_trans);
+          
+      F.function = &DS_long_integrand;
+          
+      gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_long,&error_long);
+          
+      //The factor of pi/(2sqrt(2pi)) comes from the difference between the constants
+      // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
+      force_tr[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_trans / (d_paral_e*d_paral_e); 
+      force_long[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_long / (d_paral_e*d_paral_e);        
+          
+      gsl_integration_workspace_free(w);
+        
+      std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
     }
     return 0;
 }
