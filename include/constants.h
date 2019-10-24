@@ -7,7 +7,7 @@ const double k_e = 1.602176565E-19;         //Elementary charge, in C
 const double k_pi = 3.1415926535897932384626;
 const double k_u = 931.49406121;            //Atomic mass unit, in MeV/c^2
 const double k_me = 0.510998928;            //electron mass, in MeV/c^2
-
+const double k_re = 2.8179403227E-15;		//Classical electron radius
 
 
 

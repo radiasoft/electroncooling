@@ -4,7 +4,7 @@
 #include <vector>
 #include "constants.h"
 
-enum class ForceFormula {PARKHOMCHUK};
+enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY};
 
 class ForceParas{
     ForceFormula formula_;
