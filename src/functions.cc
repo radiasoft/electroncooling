@@ -3,22 +3,39 @@
 #include <chrono>
 #include <math.h>
 #include <random>
+#include <stdexcept>
 
 int gaussian_random(unsigned int n, double *random_num, double sigma, double avg){
-    std::default_random_engine generator;
-//    generator.seed(2);
-    generator.seed(rand());
-    std::normal_distribution<double> distribution(avg,sigma);
-    for(unsigned int i=0; i<n; ++i) random_num[i] = distribution(generator);
+
+    if(sigma > 0){
+        std::default_random_engine generator;
+//    generator.seed(0);
+//    generator.seed(rand());
+        generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
+        std::normal_distribution<double> distribution(avg,sigma);
+        for(unsigned int i=0; i<n; ++i) random_num[i] = distribution(generator);
+    }
+    else{
+        assert(false && "Gaussian distribution with improper value" );
+    }
+
     return 0;
 }
 
 int uniform_random(unsigned int n, double *random_num, double r_min, double r_max){
-    std::default_random_engine generator;
-//    generator.seed(2);
-    generator.seed(rand());
-    std::uniform_real_distribution<double> uniform_dis(r_min,r_max);
-    for(unsigned int i=0; i<n; ++i) random_num[i] = uniform_dis(generator);
+    
+    if((r_max < r_min) || (r_max == r_min)){
+            assert(false && "Uniform Distribution with improper value" );
+    }
+    else{
+        std::default_random_engine generator;
+//    generator.seed(0);
+//    generator.seed(rand());
+        generator.seed(std::chrono::system_clock::now().time_since_epoch().count());    
+        std::uniform_real_distribution<double> uniform_dis(r_min,r_max);
+        for(unsigned int i=0; i<n; ++i) random_num[i] = uniform_dis(generator);
+    }
+
     return 0;
 }
 
@@ -43,12 +60,31 @@ int gaussian_random_adjust(unsigned int n, double *random_num, double sigma, dou
 }
 
 int uniform_random_adjust(unsigned int n, double *random_num, double avg) {
+
+    //TODO: Re-implement this.
+    //With this method, the sample mean can be stochastically 
+    // greater than the true mean, which can push the adjusted max to
+    // be greater than the true defined max + avg shift
+    /*
     double mean = 0;
     for(unsigned int i=0; i<n; ++i) mean += random_num[i];
     mean /= n;
     double adjust = avg - mean;
     for(unsigned int i=0; i<n; ++i) random_num[i] += adjust;
     return 0;
+    */
+    
+    std::vector<double> v(random_num, random_num + n);
+    
+    double max = *std::max_element(v.begin(),v.end());
+    double min = *std::min_element(v.begin(),v.end());        
+    
+    double mean = 0.5 * (max + min);
+    
+    double adjust = avg - mean;
+    for(unsigned int i=0; i<n; ++i) random_num[i] += adjust;
+    return 0;
+    
 }
 
 bool iszero(double &x) {
@@ -64,7 +100,7 @@ bool iszero(double &x) {
 /** \brief Computes Carlson's elliptic integral of the second kind, RD(x, y, z).
  * x and y must be nonnegative, and at most one can be zero. z must be positive.
  * TINY must be at least twice the negative 2/3 power of the machine overflow limit.
- * BIG must be at most 0.1 ¡Á ERRTOL times the negative 2/3 power of the machine underflow limit.
+ * BIG must be at most 0. ERRTOL times the negative 2/3 power of the machine underflow limit.
  * The algorithm follows the example in "Numerical recipes in C: the art of scientific computing" by Press W.H.,
  * Teukolsky S.A., Vetterling W.T., and Flannery B.P.
  *
@@ -87,7 +123,9 @@ double rd(double x, double y, double z) {
     double C6 = 1.5*C4;
 
     if(std::min(x,y)<0.0 || std::min(x+y,z)<TINY || std::max(std::max(x,y),z)>BIG)
-        assert(false&&"Invalid arguments in rd!");
+        //assert(false&&"Invalid arguments in rd!");
+        //Redefine this so it is unit-testable
+        std::invalid_argument("Invalid arguments in rd!");
     double sum = 0;
     double fac = 1.0;
     double delta_x, delta_y, delta_z, ave;
