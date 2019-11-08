@@ -4,7 +4,7 @@
 #include <vector>
 #include "constants.h"
 
-enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY};
+enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV};
 
 class ForceParas{
     ForceFormula formula_;
@@ -12,6 +12,8 @@ class ForceParas{
     double magnetic_field_ = 0;
     double d_perp_e_;
     double d_paral_e_;
+    double v_perp_e_;
+    double v_paral_e_;
     double *ptr_d_perp_e_ = nullptr;
     double *ptr_d_paral_e_ = nullptr;
     double time_cooler_;
@@ -22,6 +24,8 @@ class ForceParas{
     double magnetic_field(){return magnetic_field_;}
     double d_perp_e(){return d_perp_e_;}
     double d_paral_e(){return d_paral_e_;}
+    double v_perp_e(){return v_perp_e_;}
+    double v_paral_e(){return v_paral_e_;}
     double *ptr_d_perp_e(){return ptr_d_perp_e_;}
     double *ptr_d_paral_e(){return ptr_d_paral_e_;}
     double time_cooler(){return time_cooler_;}
