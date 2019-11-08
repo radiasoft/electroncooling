@@ -34,6 +34,8 @@ class ForceParas{
     int set_magnetic_field(double x){magnetic_field_=x; return 0;}
     int set_d_perp_e(double x){d_perp_e_ = x; return 0;}
     int set_d_paral_e(double x){d_paral_e_ = x; return 0;}
+    int set_v_perp_e(double x){v_perp_e_ = x; return 0;}
+    int set_v_paral_e(double x){v_paral_e_ = x; return 0;}
     int set_ptr_d_perp_e(double* x){ptr_d_perp_e_ = x; return 0;}
     int set_ptr_d_paral_e(double* x){ptr_d_paral_e_ = x; return 0;}
     int set_ptr_d_perp_e(std::vector<double>& x){ptr_d_perp_e_ = &*x.begin(); return 0;}
