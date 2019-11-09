@@ -169,7 +169,7 @@ double CompareOutput(string filename_golden,string filename_test){
         //Find the matching point for the test dataset
         // & add it to the fit vector. Our data is already
         // sorted by v_long.
-        double min = 10000; //The closest point
+        double min = DBL_MAX; //The closest point
         int min_index = 0;
         
         for(int j = 0; j<test.size();j++){
