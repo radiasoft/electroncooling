@@ -185,7 +185,7 @@ double CompareOutput(string filename_golden,string filename_test){
             }
         }
 
-        JSPEC_ASSERT_THROW( min == DBL_MAX );
+        JSPEC_ASSERT_THROW( min < DBL_MAX );
         double f_long_t = test[min_index][5];
         x_vec.push_back(test[min_index][2]);
         y_vec.push_back(f_long_t - f_long_g);
@@ -228,7 +228,7 @@ double CompareOutput(string filename_golden,string filename_test){
       &cov00,
       &cov01,
       &cov11,
-      &sumsq,
+      &sumsq
     );
     
     std::cout<<std::endl;
