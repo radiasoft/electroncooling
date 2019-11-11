@@ -111,19 +111,21 @@ vector< vector<double> > ReadCSV(string filename){
         std::stringstream ss(line);
         vector<double> row;
         std::string data;
-        while (getline(ss,data,',') ){
+        while ( getline(ss,data,',') ){
 
             //Handle lines that don't match the format
             try{
                 row.push_back( stod(data) );
             }
             catch(const std::exception& e){
-             //It was a bad line, we'll toss the whole row   
-                continue;
+             //Something other than the double we expect has snuck in.   
+             // Use the testing framework to point us to this line # for guidance
+              JSPEC_ASSERT_THROW( 1 == 0);
             }
         }
         //The variables are F_const, v_trans, v_long, electron density, force_trans, force_long
-        if (row.size()  == 6) matrix.push_back(row);
+        JSPEC_ASSERT_THROW( row.size() == 6 );
+        matrix.push_back(row);
     }    
 
     //now that we've ingested the whole file,
@@ -183,6 +185,7 @@ double CompareOutput(string filename_golden,string filename_test){
             }
         }
 
+        JSPEC_ASSERT_THROW( min == DBL_MAX );
         double f_long_t = test[min_index][5];
         x_vec.push_back(test[min_index][2]);
         y_vec.push_back(f_long_t - f_long_g);
@@ -195,13 +198,6 @@ double CompareOutput(string filename_golden,string filename_test){
     double cov00,cov01,cov11;
     double c0,c1,sumsq;
     
-    double x[n];
-    double y[n];
-    for(int i=0;i<n;i++){
-        x[i] = x_vec[i];
-        y[i] = y_vec[i];
-    }
-
     //Dump this to file for analysis in PYTHON
  /*
     std::ofstream outfile;
@@ -220,9 +216,20 @@ double CompareOutput(string filename_golden,string filename_test){
     //The difference between the reference trend and
     // the test trend should fit to a linear fit with 
     // slope ~ 0 and intercept ~ 0. 
-
-    gsl_fit_linear(x,xstride,y,ystride,n,&c0,&c1,&cov00,&cov01,&cov11,&sumsq);
-
+    assert(x_vec.size() == y_vec.size());
+    gsl_fit_linear(
+      x_vec.data(),
+      xstride,
+      y_vec.data(),
+      ystride,
+      x_vec.size(),
+      &c0,
+      &c1,
+      &cov00,
+      &cov01,
+      &cov11,
+      &sumsq,
+    );
     
     std::cout<<std::endl;
     std::cout<<n<<" points in comparison"<<std::endl;
