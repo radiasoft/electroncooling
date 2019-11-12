@@ -129,15 +129,6 @@ struct int_info {
 	double width; 
 };
 
-double bunch_shape(double v_e,void *params){
-
-    struct int_info *p = (struct int_info *)params;
-    double pdf = 1.0 / p->width;
-	pdf *= exp(-(v_e * v_e) / (2.0 * p->width*p->width));
-    
-    return pdf;
-}
-
 double DS_trans_integrand(double alpha,void *params){
     //Using Pestrikov's trick to change the integration variable
 
@@ -245,7 +236,13 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
 //This version for when d_perp_e and d_paral_e are doubles
 int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
         double temperature, double magnetic_field, double d_perp_e, double d_paral_e, 
-        double v_perp_e, double v_paral_e, double time_cooler, double *force_tr, double *force_long) {
+        double time_cooler, double *force_tr, double *force_long,bool do_test) {
+    
+    //Open up an output file if we're in the testing phase
+    std::ofstream outfile;
+    if(do_test){
+      outfile.open("Meshkov.txt");
+    }      
     
   //Constant term for Parkhomchuk functions, above
   double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
@@ -253,18 +250,16 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
   double rho_L      = (k_me*1e6) * d_perp_e / (k_c*k_c * magnetic_field);
   double wp_const   = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
-  //used for region I
-  double v_e        = sqrt(v_perp_e*v_perp_e + v_paral_e*v_paral_e);
-  double v3_e       = pow(v_e,3);    
     
   //A fudge factor to smooth the friction force shape. Using the
-  // "Classical" definition here until from the BETACOOL documentation
+  // "Classical" definition here from the BETACOOL documentation
   double k = 2;
   double rho_min_const = charge_number * k_e*k_e * k_c*k_c / (k_me * 1e6);
     
-    for(unsigned long int i=0;i<ion_number; ++i){
+  for(unsigned long int i=0;i<ion_number; ++i){
 
       double v2      = v_tr[i]*v_tr[i] + v_long[i]*v_long[i];
+      double v3      = pow(sqrt(v2),3);
       double dlt     = sqrt(v2 + dlt2_eff_e);
       double wp      = sqrt(wp_const*density_e[i]);
 
@@ -296,51 +291,47 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
 
       //Define the regions of the ion velocity domains
       double result_trans,result_long;
-
+    
+      double ellipse = (v_tr[i]*v_tr[i])/(d_perp_e*d_perp_e) + (v_long[i]*v_long[i])/(d_paral_e*d_paral_e);
+      
       if(sqrt(v2) > d_perp_e) { //Region I
               result_trans = 2*L_F + L_M*(v_tr[i]*v_tr[i] - 2*v_long[i]*v_long[i])/v2;
-              result_trans /= v3_e;
+              result_trans /= v3;
           
               result_long = 2 + 2*L_F + L_M*(3*v_tr[i]*v_tr[i]/v2);
-              result_long /= v3_e;
+              result_long /= v3;
       }   
+      else if(sqrt(v2) < d_paral_e) { //Region III
+              result_trans = 2*(L_F + N_col*L_A)/pow(d_perp_e,3) + L_M/pow(d_paral_e,3);
+              result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
+      }  
+
       //Region II (a or b)
-      else if(sqrt(v2) > d_paral_e){
-          //This constrains to a donut shape (d_paral_e < sqrt(v2) < d_perp_e).
-          // We sub-divide into regions a and b based only on v_trans, 
-          // and it's a binary decision. The a/b decision only matters for F_long
-          
-          result_trans = ((v_tr[i]*v_tr[i] - 2*v_long[i]*v_long[i])/v2) * (L_M/pow(v2,3/2));
+      else{ //This constrains to a donut shape (d_paral_e < sqrt(v2) < d_perp_e).
+          result_trans = ((v_tr[i]*v_tr[i] - 2*v_long[i]*v_long[i])/v2) * (L_M/v3);
           result_trans += (2/pow(d_perp_e,3)) * (L_F + N_col*L_A);
           
-          if(v_long[i] < d_paral_e){ // Region IIb
+          if( ellipse <= 1.0 ){ // Region IIb
               //This is the same as result_long in Region 3
-              result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e*d_paral_e) + L_M/pow(d_paral_e,3);
+              result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
           }
           else{ //It must be Region IIa
-              result_long = (((3*v_tr[i]*v_tr[i]*L_M)/v2) + 2) * pow(v2,-3/2);
+              result_long = (((3*v_tr[i]*v_tr[i]*L_M)/v2) + 2) / v3;
               result_long += 2 * (L_F + N_col*L_A)/(d_perp_e*d_perp_e * v_long[i]);
           }
       } 
-      else if(sqrt(v2) < d_paral_e) { //Region III
-            result_trans = 2*(L_F + N_col*L_A)/pow(d_perp_e,3) + L_M/pow(d_paral_e,3);
-
-            result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
-            //std::cout<<"LF = "<<L_F<<" N_col = "<<N_col<<" L_A = "<<L_A<<" L_M ="<<L_M<<std::endl;
-            //std::cout<<"rho_sh = "<<rho_sh<<" rho_L = "<<rho_L<<" rho_F = "<<rho_F<<" rho_L ="<<rho_L<<" rho_min = "<<rho_min<<" rho_max ="<<rho_max<<std::endl;
-      }  
-        
-      else{
-          perror("Invalid particle velocities!");
-      }  
         
       //The factor of pi/2 comes from the difference between the constants
       // used in Parkhomchuk with the constants used in the Meshkov representation
-      force_tr[i] = f_const * (k_pi/2) * density_e[i] * result_trans * v_perp_e;
-      force_long[i] = f_const * (k_pi/2) * density_e[i] * result_long * v_paral_e;
-          
-      //std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
+      force_tr[i] = f_const * (k_pi/2) * density_e[i] * result_trans * v_tr[i];
+      force_long[i] = f_const * (k_pi/2) * density_e[i] * result_long * v_long[i];
+      if(do_test){    
+          outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+        }
     }
+    
+    outfile.close();
+    
     return 0;
 }
 
@@ -403,11 +394,9 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             else {
                 double d_perp_e = force_paras.d_perp_e();   //From ebeam.v_rms_tr
                 double d_paral_e = force_paras.d_paral_e(); //From ebeam.v_rms_long
-                double v_perp_e = force_paras.v_perp_e();
-                double v_paral_e = force_paras.v_paral_e();
                 
                 Meshkov(charge_number, ion_number, v_tr, v_long, density_e, temperature,  magnetic_field, d_perp_e,
-                            	d_paral_e, v_perp_e, v_paral_e, time_cooler, force_tr, force_long);
+                            	d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
             }
             break;
         }

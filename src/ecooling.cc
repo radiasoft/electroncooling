@@ -706,10 +706,6 @@ int force(unsigned int n_sample, Beam &ion, EBeam &ebeam, Cooler &cooler, ForceP
     else {
         force_paras.set_d_perp_e(ebeam.v_rms_tr());
         force_paras.set_d_paral_e(ebeam.v_rms_long());
-        //The transverse electron velocities are needed for the Meshkov force model
-        force_paras.set_v_perp_e(ebeam.tmp_tr()*k_c*k_c/(k_me*1e6));
-        force_paras.set_v_paral_e(ebeam.tmp_long()*k_c*k_c/(k_me*1e6));
-
     }
 
     //Calculate friction force

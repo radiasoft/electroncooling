@@ -12,8 +12,6 @@ class ForceParas{
     double magnetic_field_ = 0;
     double d_perp_e_;
     double d_paral_e_;
-    double v_perp_e_;
-    double v_paral_e_;
     double *ptr_d_perp_e_ = nullptr;
     double *ptr_d_paral_e_ = nullptr;
     double time_cooler_;
@@ -24,8 +22,6 @@ class ForceParas{
     double magnetic_field(){return magnetic_field_;}
     double d_perp_e(){return d_perp_e_;}
     double d_paral_e(){return d_paral_e_;}
-    double v_perp_e(){return v_perp_e_;}
-    double v_paral_e(){return v_paral_e_;}
     double *ptr_d_perp_e(){return ptr_d_perp_e_;}
     double *ptr_d_paral_e(){return ptr_d_paral_e_;}
     double time_cooler(){return time_cooler_;}
@@ -34,8 +30,6 @@ class ForceParas{
     int set_magnetic_field(double x){magnetic_field_=x; return 0;}
     int set_d_perp_e(double x){d_perp_e_ = x; return 0;}
     int set_d_paral_e(double x){d_paral_e_ = x; return 0;}
-    int set_v_perp_e(double x){v_perp_e_ = x; return 0;}
-    int set_v_paral_e(double x){v_paral_e_ = x; return 0;}
     int set_ptr_d_perp_e(double* x){ptr_d_perp_e_ = x; return 0;}
     int set_ptr_d_paral_e(double* x){ptr_d_paral_e_ = x; return 0;}
     int set_ptr_d_perp_e(std::vector<double>& x){ptr_d_perp_e_ = &*x.begin(); return 0;}
