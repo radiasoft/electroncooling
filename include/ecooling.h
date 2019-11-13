@@ -17,6 +17,7 @@ class EcoolRateParas{
     bool shift_ = false;             //false: ion center and e- center overlap, true: there's a shift between the beam
     double bunch_separate_;
     int n_long_sample_ = 50;
+
 public:
     IonSample ion_sample(){return ion_sample_;}
     int n_sample(){return n_sample_;}
@@ -31,7 +32,7 @@ public:
     int set_n_long(unsigned int n){n_long_=n; n_sample_=n_tr_*n_tr_*n_long_; return 0;}
     int set_bunch_separate(double x){bunch_separate_ = x; return 0;}
     int set_n_long_sample(int x){ n_long_sample_ = x; return 0;}
-
+    
     EcoolRateParas(){};
     EcoolRateParas(int n_sample):ion_sample_(IonSample::MONTE_CARLO),n_sample_(n_sample){};
     EcoolRateParas(int n_tr, int n_long):n_tr_(n_tr),n_long_(n_long){

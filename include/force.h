@@ -15,6 +15,7 @@ class ForceParas{
     double *ptr_d_perp_e_ = nullptr;
     double *ptr_d_paral_e_ = nullptr;
     double time_cooler_;
+    bool do_test_ = false;
  public:
     ForceFormula formula(){return formula_;}
     double park_temperature_eff(){return park_temperature_eff_;}
@@ -24,6 +25,7 @@ class ForceParas{
     double *ptr_d_perp_e(){return ptr_d_perp_e_;}
     double *ptr_d_paral_e(){return ptr_d_paral_e_;}
     double time_cooler(){return time_cooler_;}
+    bool do_test(){return do_test_;}
     int set_park_temperature_eff(double x){park_temperature_eff_ = x; return 0;}
     int set_magnetic_field(double x){magnetic_field_=x; return 0;}
     int set_d_perp_e(double x){d_perp_e_ = x; return 0;}
@@ -33,6 +35,7 @@ class ForceParas{
     int set_ptr_d_perp_e(std::vector<double>& x){ptr_d_perp_e_ = &*x.begin(); return 0;}
     int set_ptr_d_paral_e(std::vector<double>& x){ptr_d_paral_e_ = &*x.begin(); return 0;}
     int set_time_cooler(double x){time_cooler_ = x; return 0;}
+    int set_do_test(bool b){do_test_ = b; return 0;}
     ForceParas(ForceFormula formula):formula_(formula){};
 };
 

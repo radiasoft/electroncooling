@@ -1,4 +1,5 @@
 #include "force.h"
+
 #include <cmath>
 #include <cstdio>
 
@@ -7,9 +8,10 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 
+
 int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                 double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, double time_cooler,
-                double *force_tr, double *force_long) {
+                double *force_tr, double *force_long, bool do_test) {
     double f_const = -4*k_c*k_c*k_ke*k_ke*k_e*k_e*k_e/(k_me*1e6);
     double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
 //    double dlt2_eff_e = dlt_paral_e*dlt_paral_e+V2_eff_e;
@@ -17,6 +19,12 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
     double wp_const = 4*k_pi*k_c*k_c*k_e*k_ke/(k_me*1e6);
     double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
 
+    //Open up an output file if we're in the testing phase
+    std::ofstream outfile;
+    if(do_test){
+      outfile.open("Parkhomchuk.txt");
+    }   
+    
     double *dlt2_eff_e = new double[ion_number];
     for(unsigned long int i=0; i<ion_number; ++i){
         dlt2_eff_e[i] = d_paral_e[i]*d_paral_e[i]+v2_eff_e;
@@ -52,13 +60,17 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
             force_tr[i] = 0;
             force_long[i] = 0;
         }
+        if(do_test){
+            outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+        }
     }
+    outfile.close();
     return 0;
 }
 
 int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                 double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
-                double *force_tr, double *force_long) {
+                double *force_tr, double *force_long, bool do_test) {
     double f_const = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
     double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
     double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
@@ -66,6 +78,12 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
     double wp_const = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
     double rho_min_const = charge_number * k_e * k_ke * k_c*k_c/(k_me*1e6);
 
+    //Open up an output file if we're in the testing phase
+    std::ofstream outfile;
+    if(do_test){
+      outfile.open("Parkhomchuk.txt");
+    }   
+    
     for(unsigned long int i=0; i<ion_number; ++i){
         double v2 = v_tr[i]*v_tr[i]+v_long[i]*v_long[i];
         if(v2>0){
@@ -87,15 +105,18 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
             double f = f_const*density_e[i]*lc/(dlt*dlt*dlt);
             force_tr[i] = f*v_tr[i];
             force_long[i] = f*v_long[i];
-
-            //std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<f*v_tr[i]<<", "<<f*v_long[i]<<std::endl;
-
         }
         else{
             force_tr[i] = 0;
             force_long[i] = 0;
         }
+        if(do_test){
+              outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+        }
     }
+    
+    outfile.close();
+
     return 0;
 }
 
@@ -150,7 +171,7 @@ double DS_long_integrand(double alpha, void *params){
 
 int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
         double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
-        double *force_tr, double *force_long) {    
+        double *force_tr, double *force_long, bool do_test) {    
     
   //Constant term for Parkhomchuk functions, above
   double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
@@ -159,8 +180,14 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
   double rho_L      = (k_me*1e6) * d_perp_e / (k_c*k_c * magnetic_field);
   double wp_const   = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
+  
+  //Open up an output file if we're in the testing phase
+  std::ofstream outfile;
+  if(do_test){
+      outfile.open("DerbenevSkrinsky.txt");
+  }   
     
-    for(unsigned long int i=0;i<ion_number; ++i){
+  for(unsigned long int i=0;i<ion_number; ++i){
 
       //Calculate rho_max as in the Parkhomchuk model
       double v2      = v_tr[i]*v_tr[i] + v_long[i]*v_long[i];
@@ -204,9 +231,14 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       force_long[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_long / (d_paral_e*d_paral_e);        
           
       gsl_integration_workspace_free(w);
-        
-      //std::cout<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<std::endl;
+
+      if(do_test){
+          outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+      }
     }
+    
+    outfile.close();
+       
     return 0;
 }
 
@@ -217,17 +249,18 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             double temperature = force_paras.park_temperature_eff();
             double time_cooler = force_paras.time_cooler();
             double magnetic_field = force_paras.magnetic_field();
+            //Use this overloaded function if the ebeam is bunched
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
                 double *d_paral_e = force_paras.ptr_d_paral_e();
                 parkhomchuk(charge_number, ion_number, v_tr, v_long, density_e, temperature, magnetic_field, d_perp_e,
-                            d_paral_e, time_cooler, force_tr, force_long);
+                            d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
             }
             else {
                 double d_perp_e = force_paras.d_perp_e();
                 double d_paral_e = force_paras.d_paral_e();
                 parkhomchuk(charge_number, ion_number, v_tr, v_long, density_e, temperature,  magnetic_field, d_perp_e,
-                            d_paral_e, time_cooler, force_tr, force_long);
+                            d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
             }
             break;
         }
@@ -240,7 +273,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
 //        		double *d_perp_e = force_paras.ptr_d_perp_e();
 //              double *d_paral_e = force_paras.ptr_d_paral_e();
 //              DerbenevSkrinsky(charge_number, ion_number, v_tr, v_long, density_e, temperature, magnetic_field, d_perp_e,
- //                         d_paral_e, time_cooler, force_tr, force_long);
+ //                         d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
         		break;
             }
             else {
@@ -248,7 +281,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
                 double d_paral_e = force_paras.d_paral_e(); //From ebeam.v_rms_long
 
                 DerbenevSkrinsky(charge_number, ion_number, v_tr, v_long, density_e, temperature,  magnetic_field, d_perp_e,
-                            	d_paral_e, time_cooler, force_tr, force_long);
+                            	d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
             }
             break;
         }

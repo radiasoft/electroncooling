@@ -132,6 +132,7 @@ double emit(double * x, double * xp, unsigned int n){
     }
 //    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
     emit = sqrt(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp)/n;
+    
     return emit;
 }
 
@@ -149,6 +150,7 @@ double emit_p(double * dp_p, unsigned int n){
         emit_p += dp_p_adj*dp_p_adj;
     }
     emit_p /= n;
+       
     return emit_p;
 }
 
@@ -179,6 +181,7 @@ double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n){
     emit_s /= (ring.beta_s()*ring.beta_s());
 
     emit_p = (emit_p + emit_s)/n;
+        
     return emit_p;
 }
 
@@ -670,7 +673,7 @@ int restore_velocity(unsigned int n_sample, EBeam &ebeam) {
 //}
 //
 int beam_frame(unsigned int n_sample, double gamma_e) {
-    double gamma_e_inv = 1/gamma_e;
+    double gamma_e_inv = 1./gamma_e;
     for(unsigned int i=0; i<n_sample; ++i){
         v_tr[i] *= gamma_e;
         ne[i] *= gamma_e_inv;
@@ -716,6 +719,8 @@ int force(unsigned int n_sample, Beam &ion, EBeam &ebeam, Cooler &cooler, ForceP
 int force_distribute(unsigned int n_sample, Beam &ion) {
     double v0 = ion.beta()*k_c;
     for(unsigned int i=0; i<n_sample; ++i){
+        //TODO: Shouldn't this be updated by force_y?
+        // or is cylindrical symmetry at work here?
         force_y[i] = yp[i]!=0?force_x[i]*yp[i]*v0/v_tr[i]:0;
         force_x[i] = xp[i]!=0?force_x[i]*xp[i]*v0/v_tr[i]:0;
     }
@@ -946,7 +951,7 @@ int bunched_to_coasting(EcoolRateParas &ecool_paras, Beam &ion, EBeam &ebeam, Co
     int n_long = ecool_paras.n_long_sample();
     double length = ebeam.length();
     double step = length/n_long;
-    double gamma_e_inv = 1/ebeam.gamma();
+    double gamma_e_inv = 1./ebeam.gamma();
     for(double cz = cz_rcd-0.5*length; cz <= cz_rcd+0.5*length; cz += step) {
         ion.set_center(2,cz);
         electron_density(ecool_paras, ion, ebeam);
@@ -1011,7 +1016,9 @@ int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &io
 
     //Special treatment for bunched electron beam to cool coasting ion beam
     if(!ion.bunched()&&ebeam.bunched()) {
+        //bunched_to_coasting is calling force() within it (again?)
         bunched_to_coasting(ecool_paras, ion, ebeam, cooler, force_paras);
+        //TODO: Should this really be calculating force for a 3rd time?
         force(n_sample, ion, ebeam, cooler, force_paras);
     }
 
