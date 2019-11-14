@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <stdio.h>
 
 #include "force.h"
 #include "ecooling.h"
@@ -235,6 +236,9 @@ void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
+  double F_ne = 1.695e6;
+  double F_Z = 79;
+
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression
@@ -263,7 +267,6 @@ void testForce(){
   slope = CompareOutput(data_path,test_path);
   JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
 
-    
   JSPEC_TEST_END();
 
   //TODO: Clean up after our test, delete the test files  
