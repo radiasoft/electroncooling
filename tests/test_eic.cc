@@ -236,9 +236,6 @@ void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
-  double F_ne = 1.695e6;
-  double F_Z = 79;
-
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression

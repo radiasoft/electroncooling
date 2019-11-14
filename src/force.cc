@@ -199,7 +199,7 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
 
       // If rho_max < rho_L the coulomb log is < 1, the
       // interaction doesn't happen
-      if( lm < 1 ) lm = 0.0;
+      if( lm < 1. ) lm = 0.0;
         
       //In the middle range where we must evaluate the integral
          
@@ -291,9 +291,9 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
       double L_F = log(rho_F / rho_min);
     
       //If it's < 0, the interaction is absent
-      if(L_M < 0) L_M = 0.0;
-      if(L_A < 0) L_A = 0.0;
-      if(L_F < 0) L_F = 0.0;  
+      if( L_M < 1. ) L_M = 0.0;
+      if( L_A < 1. ) L_A = 0.0;
+      if( L_F < 1. ) L_F = 0.0;  
 
       //Define the regions of the ion velocity domains
       double result_trans,result_long;
