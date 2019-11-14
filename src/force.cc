@@ -140,7 +140,9 @@ double DS_trans_integrand(double alpha,void *params){
     
     double integrand = tan(alpha)*(y*cos(alpha) + abs(z)*sin(alpha));
     integrand *= exp(-0.5*pow(y+abs(z)*tan(alpha),2));
-    integrand *= -copysign(1,z);
+    //The F_const already has a minus sign, so the integrand term
+    // should carry the sign of z
+    integrand *= copysign(1,z);
     
     return integrand;    
 }
@@ -194,6 +196,10 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       //Maximum impact parameter log ratio, BETACOOL eq. (3.47)
       //  This has been brought outside of the integrand
       double lm = log(rho_max/rho_L); //value is ~11      
+
+      // If rho_max < rho_L the coulomb log is < 1, the
+      // interaction doesn't happen
+      if( lm < 1 ) lm = 0.0;
         
       //In the middle range where we must evaluate the integral
          
@@ -217,7 +223,7 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_long,&error_long);
           
       //The factor of pi/(2sqrt(2pi)) comes from the difference between the constants
-      // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
+      // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals      
       force_tr[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_trans / (d_paral_e*d_paral_e); 
       force_long[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_long / (d_paral_e*d_paral_e);        
           
@@ -312,7 +318,7 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
           result_trans += (2/pow(d_perp_e,3)) * (L_F + N_col*L_A);
           
           if( ellipse <= 1.0 ){ // Region IIb
-              //This is the same as result_long in Region 3
+              //This is the same as result_long in Region 3 
               result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
           }
           else{ //It must be Region IIa
