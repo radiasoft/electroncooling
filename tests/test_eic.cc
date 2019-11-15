@@ -84,7 +84,8 @@ void SetupModel(ForceFormula ff)
   ForceParas force_paras(ff);
   force_paras.set_do_test(true);
   ecooling_rate(ecool_rate_paras, force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
-
+  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
+    
   return;
 }
 
