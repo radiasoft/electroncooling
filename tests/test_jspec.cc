@@ -133,7 +133,7 @@ int both(){
 }
 
 
-int ecool(){
+int ecool(ForceFormula ff, double *check_rates){
     JSPEC_TEST_BEGIN("Electron cooling:");
     
     //define coasting 12C6+ beam
@@ -182,18 +182,16 @@ int ecool(){
     unsigned int n_long = 100;
     EcoolRateParas ecool_rate_paras(n_tr, n_long);
 
-    ForceParas force_paras(ForceFormula::PARKHOMCHUK);
+    ForceParas force_paras(ff);
     double rate_x, rate_y, rate_s;
     ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
-    
-    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_s + 0.0190261) < 1e-5);
-    
-    //rate_x = -0.00865669 rate_y = -0.00900383 rate_s = -0.0190261
-    
+        
+    JSPEC_ASSERT_THROW(abs(rate_x - check_rates[0]) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_y - check_rates[1]) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_s - check_rates[2]) < 1e-5);
+        
     JSPEC_TEST_END();
     
     return 0;
@@ -576,10 +574,29 @@ int dynamicboth(){
 
 int main(int, char**)
 {
+    
+    double check_rates[3];
+    check_rates[0] = -0.00865669;
+    check_rates[1] = -0.00900383;
+    check_rates[2] = -0.0190261;
+
+    ecool(ForceFormula::PARKHOMCHUK,check_rates);
+
+    check_rates[0] = -0.00999503;
+    check_rates[1] = -0.0108123;
+    check_rates[2] = -0.0243214;
+    
+    ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
+
+    check_rates[0] = -1.72854;
+    check_rates[1] = -1.72863;
+    check_rates[2] = -2.61073;
+    
+    ecool(ForceFormula::MESHKOV,check_rates);
+
     dynamicibsbunched();
     dynamicibs();
     dynamicecool();
-    ecool();
     ibs();    
     //These both take a long time
     //dynamicboth();

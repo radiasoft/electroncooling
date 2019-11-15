@@ -22,6 +22,16 @@ Users can also use cmake to compile the files (tested in Ubuntu 16.06). In the p
 >
 > `make`
 
+#### Test
+
+Users can validate the compiliation by using the included testing functions
+
+> `make test`
+
+One can aid with diagnosing testing problems by using the verbose version of this action:
+
+> `ctest -VV`
+
 ## How to run
 
 To run JSPEC, you can put your input file in the same folder with the JSPEC executable file and run the following commands in the folder:

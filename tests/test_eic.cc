@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <stdio.h>
 
 #include "force.h"
 #include "ecooling.h"
@@ -83,7 +84,8 @@ void SetupModel(ForceFormula ff)
   ForceParas force_paras(ff);
   force_paras.set_do_test(true);
   ecooling_rate(ecool_rate_paras, force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
-
+  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
+    
   return;
 }
 
@@ -264,6 +266,12 @@ void testForce(){
   slope = CompareOutput(data_path,test_path);
   JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
   
+  SetupModel(ForceFormula::MESHKOV);
+  data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpMesh.txt");
+  test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Meshkov.txt");
+  slope = CompareOutput(data_path,test_path);
+  JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
+
   JSPEC_TEST_END();
 
   //TODO: Clean up after our test, delete the test files  
