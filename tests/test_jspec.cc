@@ -188,11 +188,33 @@ int ecool(){
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
     
-    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_s + 0.0190261) < 1e-5);
+//    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
+//    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
+//    JSPEC_ASSERT_THROW(abs(rate_s + 0.0190261) < 1e-5);
+
+    JSPEC_ASSERT_THROW(abs(rate_x + 0.0087216) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_y + 0.00907129) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_s + 0.0191686) < 1e-5);
+
     
-    //rate_x = -0.00865669 rate_y = -0.00900383 rate_s = -0.0190261
+    std::cout<<"Force calculation"<<std::endl;
+    //electrons and ions must be bunched for this to work
+    double sigma_x = 1.5e-2;
+    double sigma_y = 1.5e-2;
+    double sigma_s = 2e-2;
+    double n_particle = 1e7;
+    GaussianBunch gb(n_particle,sigma_x,sigma_y,sigma_s);
+    EBeam e_beam2(gamma_e, tmp_tr, tmp_long, gb);
+    Beam c_beam2(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, 
+                 sigma_s, //This makes sure c_beam is bunched and allows that v_long can have > 2 values
+                 n_ptcl);
+
+    n_long = 2;
+    EcoolRateParas ecool_rate_paras2(n_tr, n_long);
+    //ForceParas force_paras2(ForceFormula::DERBENEVSKRINSKY);
+    
+    ForceParas force_paras2(ForceFormula::PARKHOMCHUK);
+    CalculateForce(ecool_rate_paras2, force_paras2, c_beam2, cooler, e_beam2, ring);
     
     JSPEC_TEST_END();
     
@@ -306,6 +328,9 @@ int dynamicibsbunched(){
     
     Cooler *cooler=nullptr;
     EBeam *e_beam=nullptr;
+    
+    //Skip the Force visualization calculation
+    dynamic_paras->set_test(true);
     dynamic(p_beam, *cooler, *e_beam, ring);
     
     JSPEC_TEST_END();
@@ -353,6 +378,8 @@ int dynamicibs(){
 //  outfile.close();
 
     dynamic_paras->set_output_file("test_dynamic_ibs.txt");
+    //Skip the Force visualization calculation
+    dynamic_paras->set_test(true);
     dynamic(p_beam, *cooler, *e_beam, ring);
 
     
@@ -424,6 +451,8 @@ int dynamicecool(){
 //  outfile.close();
 
     dynamic_paras->set_output_file("test_dynamic_ecool_DC_model_beam.txt");
+    //Skip the Force visualization calculation
+    dynamic_paras->set_test(true);
     dynamic(p_beam, cooler, e_beam, ring);
 
     
@@ -566,6 +595,8 @@ int dynamicboth(){
 //                outfile.close();
 
     dynamic_paras->set_output_file("Collider_100GeV_strong_cooling_baseline_44Ecm_2nC_rms_02_long_cool_compensated.txt");
+    //Skip the Force visualization calculation
+    dynamic_paras->set_test(true);
     dynamic(p_beam, cooler, e_beam, ring);
 
     
@@ -583,6 +614,6 @@ int main(int, char**)
     ibs();    
     //These both take a long time
     //dynamicboth();
-    //both();
+   // both();
  
 }

@@ -36,6 +36,7 @@ public:
     int set_sigma_s(double x){sigma_s_ = x; return 0;}
     int set_center(double cx, double cy, double cz){center_[0] = cx; center_[1] = cy; center_[2] = cz; return 0;}
     int set_center(int i, double x);
+    int set_bunched(bool s){bunched_ = s; return 0;}
     int charge_number(){return charge_number_;}
     double mass(){return mass_;}
     double kinetic_energy(){return kinetic_energy_;}
