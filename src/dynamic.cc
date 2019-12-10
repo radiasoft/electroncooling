@@ -17,7 +17,7 @@ extern bool dynamic_flag;
 extern double t_cooler;
 
 extern std::unique_ptr<double []> x_bet, xp_bet, y_bet, yp_bet, ds, dp_p, x, y, xp, yp;
-extern std::unique_ptr<double []> force_x, force_y, force_z;
+extern std::unique_ptr<double []> force_x, force_z, v_tr, v_long,ne;
 
 extern double vl_emit_nx, vl_emit_ny, vl_dp_p, vl_sigma_s, vl_rx_ibs, vl_ry_ibs, vl_rs_ibs,
     vl_rx_ecool, vl_ry_ecool, vl_rs_ecool, vl_rx_total, vl_ry_total, vl_rs_total, vl_t;
@@ -301,6 +301,34 @@ void save_ions_sdds(int n_sample, string filename) {
     output_particles.close();
 }
 
+void save_forces_sdds(int n_sample, string filename) {
+    using std::endl;
+    std::ofstream output_particles;
+    output_particles.open(filename);
+    output_particles<<"SDDS1"<<endl;
+    output_particles<<"! Define colums:"<<endl
+        <<"&column name=f_x, type=double, units=eV/m, description=NULL, &end"<<endl
+        <<"&column name=f_long, type=double, units=eV/m, description=NULL, &end"<<endl
+        <<"&column name=V_long, type=double, units=m/s, description=NULL, &end"<<endl
+        <<"&column name=V_trans, type=double, units=m/s, description=NULL, &end"<<endl
+        <<"&column name=e_density, type=double, units=1/m^3, description=NULL, &end"<<endl
+        <<"!Declare ASCII data and end the header"<<endl
+        <<"&data mode=ascii, &end"<<endl
+        <<n_sample<<endl;
+    output_particles.precision(10);
+    output_particles<<std::showpos;
+    output_particles<<std::scientific;
+    for(int i=0; i<n_sample; ++i) {
+        //We don't need 10k points, sub-sample
+        if(i%50 == 0){
+            //Convert forces from Newtons to eV/m
+            output_particles<< force_x[i]*k_N_eVm <<' '<< force_z[i]*k_N_eVm <<' '<<v_long[i]<<' '<<v_tr[i]<<' '<<ne[i]<<std::endl;
+        }
+    }
+    output_particles.close();
+}
+
+
 
 void save_ions(int n_sample, string filename) {
     std::ofstream output_particles;
@@ -445,7 +473,7 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
         if(ecool) {
             ecooling_rate(*ecool_paras, *force_paras, ion, cooler, ebeam, ring, r_ecool.at(0), r_ecool.at(1), r_ecool.at(2));
         }
-        for(int i=0; i<3; ++i) r.at(i) = r_ibs.at(i) + r_ecool.at(i);
+        for(int j=0; j<3; ++j) r.at(j) = r_ibs.at(j) + r_ecool.at(j);
 
         //Output
         if (output_itvl==1 || i%output_itvl==0) {
@@ -491,6 +519,13 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
     outfile.close();
     std::cout<<"Finished dynamic simulation."<<std::endl;
 
+    //Now, calculate the force as a function of velocity for plotting.
+   // Skip this calculation if we're in the testing suite
+    if(!dynamic_paras->test() && ecool &&
+       ion.bunched() && ebeam.bunched()){
+       CalculateForce(*ecool_paras, *force_paras, ion, cooler, ebeam, ring);
+       save_forces_sdds(dynamic_paras->n_sample(), "force_table.txt");
+    }
     return 0;
 }
 

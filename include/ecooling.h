@@ -26,6 +26,7 @@ public:
     double bunch_separate(){return bunch_separate_;}
     bool shift(){return shift_;}
     int n_long_sample(){return n_long_sample_;}
+    int set_ion_sample(IonSample s){ion_sample_ = s; return 0;}
     int set_n_sample(int n_sample){n_sample_ = n_sample; return 0;}
     int set_shift(bool b){shift_ = b; return 0;}
     int set_n_tr(unsigned int n_tr){n_tr_ = n_tr; n_sample_=n_tr_*n_tr_*n_long_; return 0;}
@@ -37,12 +38,15 @@ public:
     EcoolRateParas(int n_sample):ion_sample_(IonSample::MONTE_CARLO),n_sample_(n_sample){};
     EcoolRateParas(int n_tr, int n_long):n_tr_(n_tr),n_long_(n_long){
         if (n_long_<2) n_long_ = 2;
+        //TODO: Why is this n_tr^2 * n_long and not n_tr * n_long? 
         n_sample_ = n_tr_*n_tr_*n_long_;
         }
 };
 
 int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &ion, Cooler &cooler, EBeam &ebeam,
                   Ring &ring, double &rate_x, double &rate_y, double &rate_s);
+int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &ion, Cooler &cooler, EBeam &ebeam,
+                  Ring &ring);
 //int end_ecooling(EcoolRateParas &ecool_paras, Beam &ion);
 
 int config_ecooling(EcoolRateParas &ecool_paras, Beam &ion);

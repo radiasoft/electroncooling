@@ -10,6 +10,8 @@
 #include "ring.h"
 
 #include <fstream>
+#include <vector>
+#include <float.h>
 
 std::unique_ptr<double []> x_bet, xp_bet, y_bet, yp_bet, ds, dp_p, x, y, xp, yp, ne;
 std::unique_ptr<double []> force_x, force_y, force_z, v_tr, v_long;
@@ -259,7 +261,10 @@ int config_ecooling(EcoolRateParas &ecool_paras, Beam &ion) {
             break;
         }
         case IonSample::SINGLE_PARTICLE: {
-            if (!ion.bunched()) ecool_paras.set_n_long(2);
+            if (!ion.bunched()) {
+                ecool_paras.set_n_long(2);
+                std::cout<<"Continuous ion beam! Only 2 possible velocities"<<std::endl;
+            }
             assign_ecool_scratches(ecool_paras.n_sample());
             assign_single_particle_scratches(ecool_paras, ion);
             break;
@@ -672,6 +677,8 @@ int restore_velocity(unsigned int n_sample, EBeam &ebeam) {
 //    return 0;
 //}
 //
+
+//TODO: Add a check to make sure we never convert to beam_frame from beam_frame
 int beam_frame(unsigned int n_sample, double gamma_e) {
     double gamma_e_inv = 1./gamma_e;
     for(unsigned int i=0; i<n_sample; ++i){
@@ -692,7 +699,7 @@ int lab_frame(unsigned int n_sample, double gamma_e) {
     return 0;
 }
 
-    //Calculate friction force
+//Calculate friction force
 int force(unsigned int n_sample, Beam &ion, EBeam &ebeam, Cooler &cooler, ForceParas &force_paras) {
     //set parameters for friction force calculation
     force_paras.set_magnetic_field(cooler.magnetic_field());
@@ -715,14 +722,19 @@ int force(unsigned int n_sample, Beam &ion, EBeam &ebeam, Cooler &cooler, ForceP
     return 0;
 }
 
-//Distribute to x and y direction
+//Distribute to x and y direction (in lab frame)
 int force_distribute(unsigned int n_sample, Beam &ion) {
     double v0 = ion.beta()*k_c;
     for(unsigned int i=0; i<n_sample; ++i){
-        //TODO: Shouldn't this be updated by force_y?
-        // or is cylindrical symmetry at work here?
-        force_y[i] = yp[i]!=0?force_x[i]*yp[i]*v0/v_tr[i]:0;
-        force_x[i] = xp[i]!=0?force_x[i]*xp[i]*v0/v_tr[i]:0;
+        //Dividing by v_tr here leads to a problem when v_tr = 0
+        if(v_tr[i] == 0.0){
+            force_y[i] = 0.0;
+            force_x[i] = 0.0;
+        }
+        else{
+            force_y[i] = yp[i]!=0?force_x[i]*yp[i]*v0/v_tr[i]:0;
+            force_x[i] = xp[i]!=0?force_x[i]*xp[i]*v0/v_tr[i]:0;
+        }
     }
     return 0;
 }
@@ -1017,6 +1029,7 @@ int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &io
     //Special treatment for bunched electron beam to cool coasting ion beam
     if(!ion.bunched()&&ebeam.bunched()) {
         //bunched_to_coasting is calling force() within it (again?)
+        std::cout<<"Bunched to coasting!"<<std::endl;
         bunched_to_coasting(ecool_paras, ion, ebeam, cooler, force_paras);
         //TODO: Should this really be calculating force for a 3rd time?
         force(n_sample, ion, ebeam, cooler, force_paras);
@@ -1049,5 +1062,131 @@ int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &io
     //clean the scratch variables
 //    if(rms_dynamic_count<0) end_ecooling(ecool_paras, ion);
     if(!dynamic_flag) end_ecooling(ecool_paras, ion);
+    return 0;
+}
+
+
+//Fix V_tr or V_long and calculate the force at different values.
+// Using the built-in functions within ecooling to initialize all the
+// variables as in an ecooling calculation, but then swapping out the 
+// velocities to calculate the forces needed for plotting.
+int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &ion, Cooler &cooler, EBeam &ebeam,
+                  Ring &ring){
+
+    
+    //Initialize the scratch variables based on the beam configuration
+    // defined by all the function arguments
+    config_ecooling(ecool_paras, ion);
+    
+    //Create the ion samples
+    ion_sample(ecool_paras, ion, ring, cooler);
+    
+    unsigned int n_sample = ecool_paras.n_sample();
+    
+    //Calculate the electron density for each ion   
+    electron_density(ecool_paras, ion, ebeam);
+
+    //Phase space variables to dynamic variables
+    space_to_dynamic(n_sample, ion);
+
+    //Time through the cooler
+    t_cooler = cooler.length()/(ion.beta()*k_c);
+
+    //Transfer into e- beam frame
+    beam_frame(n_sample, ebeam.gamma());
+    
+    
+    //In the beam frame, determine the max/min velocities in v_long 
+    // and v_tr in the specified beam configuration
+    double v_long_max, v_tr_max, ne_max = - DBL_MAX;
+    double v_long_min, v_tr_min, ne_min = DBL_MAX;
+
+    //Protect against some extraneous large values    
+    // that wreck our v_interval. I've seen this once
+    // and it was transient
+    
+    for(int i=0;i<n_sample;i++){
+        if(v_long[i] > v_long_max) {
+            if(v_long[i] < k_c) v_long_max = v_long[i];
+        }
+        if(v_tr[i]   > v_tr_max) {
+            if(v_tr[i] < k_c)   v_tr_max = v_tr[i];
+        }
+        
+        if(v_long[i] < v_long_min){
+            if(v_long[i] > -k_c) v_long_min = v_long[i];
+        }
+        if(v_tr[i]   < v_tr_min) {
+            if(v_tr[i] > -k_c)   v_tr_min = v_tr[i];
+        }
+        
+        if(ne[i] > ne_max) ne_max = ne[i];
+        if(ne[i] < ne_min) ne_min = ne[i];   
+    }
+    
+    //std::cout<<"V_long min = "<<v_long_min<<" V_long max = "<<v_long_max<<std::endl;
+    std::cout<<"V_tr min = "<<v_tr_min<<" V_tr max = "<<v_tr_max<<std::endl;
+    std::cout<<"ne min = "<<ne_min<<" ne max = "<<ne_max<<std::endl;
+    
+    //Define the values of the velocities for reporting
+    // on the dependence of v_long. We set v_long=0 for 
+    // calculating f_tr, and v_tr = 0 for calculating f_long.
+    double v_interval = (v_tr_max - v_tr_min)/n_sample;
+
+    std::cout<<"n_sample = "<<n_sample<<" v trans interval = "<<v_interval<<std::endl;
+
+    //double xp_interval = (xp_max - xp_min)/n_sample;
+    for(int i=0;i<n_sample;i++){
+        //v_tr[i] = v_tr_min + (double)i*v_interval;
+        v_long[i] = 0.0;   
+        yp[i]  = 0.0 ; // Focus on transverse only in x direction
+        ne[i] = ne_max;  //We need a constant n_e for a smooth plot
+    
+    }
+
+    //Calculate friction force f_tr when v_long = 0.
+    force(n_sample, ion, ebeam, cooler, force_paras);
+
+    //Store the values so they don't get overwritten when we
+    // calculate f_long
+    std::vector< double > v_tmp;
+    std::vector< double > f_tmp;
+    
+    for(int i=0;i<n_sample;i++){
+        v_tmp.push_back(v_tr[i]);
+        f_tmp.push_back(force_x[i]);
+    }
+
+    //Prepare for calculating force_z (still in the beam frame)
+    v_interval = (v_long_max - v_long_min)/n_sample;
+    for(int i=0;i<n_sample;i++){
+        v_long[i] = v_long_min + (double)i*v_interval;
+        v_tr[i] = 0.0;   
+        force_x[i] = 0.0;
+        force_y[i] = 0.0;
+        force_z[i] = 0.0;
+        ne[i] = ne_max;  //We need a constant n_e for a smooth plot
+
+    }
+    std::cout<<"n_sample = "<<n_sample<<" v long interval = "<<v_interval<<std::endl;
+
+    //Calculate friction force f_long when v_tr = 0
+    force(n_sample, ion, ebeam, cooler, force_paras);
+    //This writes force_z and v_long
+
+    //Replace the values calculated previously
+    for(int i=0;i<n_sample;i++){
+        v_tr[i] = v_tmp[i];
+        force_x[i] = f_tmp[i];
+    }
+
+    //Transfer back to lab frame
+    lab_frame(n_sample, ebeam.gamma());  
+
+    //TODO: Betacool shows this as a 2d contour plot. Should we instead calculate 
+    // on a grid to prepare for this kind of plot in the future?
+    
+    end_ecooling(ecool_paras, ion);
+           
     return 0;
 }

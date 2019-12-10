@@ -59,6 +59,7 @@ class DynamicParas{
     int ion_save_intvl_ = -1;
     string filename_ = "output_dynamic.txt";
     DynamicModel model_ = DynamicModel::RMS;
+    bool test_ = false;
 //    int n_sample_;
  public:
     Twiss twiss_ref;
@@ -71,6 +72,7 @@ class DynamicParas{
     bool reset_time(){return reset_time_;}
     bool overwrite(){return overwrite_;}
     bool calc_lum(){return calc_luminosity_;}
+    bool test(){return test_;}
     int output_intval(){return output_intvl_;}
     int ion_save_intvl(){return ion_save_intvl_;}
     int n_sample(){return n_sample_;}
@@ -85,6 +87,7 @@ class DynamicParas{
     int set_reset_time(bool b){reset_time_ = b; return 0;}
     int set_overwrite(bool b) {overwrite_ = b; return 0;}
     int set_calc_lum(bool b) {calc_luminosity_ = b; return 0;}
+    int set_test(bool b) {test_ = b; return 0;}
     string output_file(){return filename_;}
     DynamicParas(double time, int n_step):time_(time),n_step_(n_step){dt_ = time_/n_step_;}
     DynamicParas(double time, int n_step, bool ibs, bool ecool):
