@@ -187,13 +187,6 @@ int ecool(ForceFormula ff, double *check_rates){
     ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
-<<<<<<< HEAD
-        
-    JSPEC_ASSERT_THROW(abs(rate_x - check_rates[0]) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_y - check_rates[1]) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_s - check_rates[2]) < 1e-5);
-        
-=======
     
 //    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
 //    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
@@ -223,7 +216,6 @@ int ecool(ForceFormula ff, double *check_rates){
     ForceParas force_paras2(ForceFormula::PARKHOMCHUK);
     CalculateForce(ecool_rate_paras2, force_paras2, c_beam2, cooler, e_beam2, ring);
     
->>>>>>> ForceAPI
     JSPEC_TEST_END();
     
     return 0;

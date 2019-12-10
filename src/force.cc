@@ -113,13 +113,9 @@ double DS_trans_integrand(double alpha,void *params){
     double x = y + abs(z)*tan(alpha);
     
     double integrand = tan(alpha)*(y*cos(alpha) + abs(z)*sin(alpha));
-<<<<<<< HEAD
-    integrand *= exp(-0.5*pow(y+abs(z)*tan(alpha),2));
     //The F_const already has a minus sign, so the integrand term
     // should carry the sign of z
-=======
     integrand *= exp(-0.5*pow(y + abs(z)*tan(alpha),2));
->>>>>>> ForceAPI
     integrand *= copysign(1,z);
     
     return integrand;    
@@ -142,7 +138,7 @@ double DS_long_integrand(double alpha, void *params){
 
 //This function is used for calculating the forces on single particles or arrays of particles
 int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
-                         double density_e,double time_cooler,double magnetic_field, double &force_tr, double &force_long){
+                         double density_e,double time_cooler,double magnetic_field, double &DS_force_tr, double &DS_force_long){
     
   double f_const    = -2 * charge_number*charge_number * density_e * k_me_kg * pow(k_re*k_c*k_c,2);
     
@@ -163,28 +159,13 @@ int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, doub
   double rho_max_3 = dlt*time_cooler;
   if(rho_max > rho_max_3) rho_max = rho_max_3;
         
-<<<<<<< HEAD
-      //Maximum impact parameter log ratio, BETACOOL eq. (3.47)
-      //  This has been brought outside of the integrand
-      double lm = log(rho_max/rho_L); //value is ~11      
-
-      // If rho_max < rho_L the coulomb log is < 1, the
-      // interaction doesn't happen
-      if( lm < 1. ) lm = 0.0;
-        
-      //In the middle range where we must evaluate the integral
-         
-      int_info params;
-      params.V_trans = v_tr[i]; //Ion velocity components
-      params.V_long  = v_long[i];
-      params.width = d_paral_e; //The electron bunch width RMS
-=======
   //Maximum impact parameter log ratio, BETACOOL eq. (3.47)
   //  This has been brought outside of the integrand
   double lm = log(rho_max/rho_L); //value is ~11      
-       
-  //In the middle range where we must evaluate the integral
->>>>>>> ForceAPI
+            
+  // If rho_max < rho_L the coulomb log is < 1, the
+  // interaction doesn't happen
+  if( lm < 1. ) lm = 0.0;
         
   int_info params;
   params.V_trans = v_tr; //Ion velocity components
@@ -199,18 +180,6 @@ int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, doub
   F.params = &params;
   F.function = &DS_trans_integrand;
 
-<<<<<<< HEAD
-      gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_trans,&error_trans);
-          
-      F.function = &DS_long_integrand;
-          
-      gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_long,&error_long);
-          
-      //The factor of pi/(2sqrt(2pi)) comes from the difference between the constants
-      // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals      
-      force_tr[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_trans / (d_paral_e*d_paral_e); 
-      force_long[i] = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * density_e[i] * result_long / (d_paral_e*d_paral_e);        
-=======
   gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_trans,&error_trans);
         
   F.function = &DS_long_integrand;
@@ -219,9 +188,8 @@ int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, doub
      
   //The factor of pi/(2sqrt(2pi)) comes from the difference between the constants
   // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
-  force_tr = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * result_trans / (d_paral_e*d_paral_e); 
-  force_long = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * result_long / (d_paral_e*d_paral_e);        
->>>>>>> ForceAPI
+  DS_force_tr = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * result_trans / (d_paral_e*d_paral_e); 
+  DS_force_long = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * result_long / (d_paral_e*d_paral_e);        
           
   gsl_integration_workspace_free(w);
    
@@ -278,20 +246,13 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
     return 0;
 }
 
-<<<<<<< HEAD
-//This version for when d_perp_e and d_paral_e are doubles
-int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
-        double temperature, double magnetic_field, double d_perp_e, double d_paral_e, 
-        double time_cooler, double *force_tr, double *force_long,bool do_test) {
-    
-    //Open up an output file if we're in the testing phase
-    std::ofstream outfile;
-    if(do_test){
-      outfile.open("Meshkov.txt");
-    }      
+int Meshkov_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
+                  double density_e,double time_cooler,double magnetic_field, double &Mesh_force_tr, double &Mesh_force_long){
     
   //Constant term for Parkhomchuk functions, above
-  double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
+//  double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
+  double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+
   double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
   double rho_L      = (k_me*1e6) * d_perp_e / (k_c*k_c * magnetic_field);
@@ -302,78 +263,102 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
   double k = 2;
   double rho_min_const = charge_number * k_e*k_e * k_c*k_c / (k_me * 1e6);
     
-  for(unsigned long int i=0;i<ion_number; ++i){
+  double v2      = v_tr*v_tr + v_long*v_long;
+  double v3      = pow(sqrt(v2),3);
+  double dlt     = sqrt(v2 + dlt2_eff_e);
+  double wp      = sqrt(wp_const*density_e);
 
-      double v2      = v_tr[i]*v_tr[i] + v_long[i]*v_long[i];
-      double v3      = pow(sqrt(v2),3);
-      double dlt     = sqrt(v2 + dlt2_eff_e);
-      double wp      = sqrt(wp_const*density_e[i]);
-
-      //The Number of multiple adiabatic collisions with a single electron
-      double N_col = 1 + d_perp_e/(k_pi*sqrt(v2 + d_paral_e*d_paral_e));
-        
-      //dynamic shielding radius
-      double rho_sh = sqrt(v2 + d_paral_e*d_paral_e) / wp;
-      //minimum impact parameter  
-      double rho_min = rho_min_const / (v2 + d_paral_e*d_paral_e); 
-      //intermediate impact parameter
-      double rho_F = rho_L * sqrt(v2 + d_paral_e*d_paral_e) / d_perp_e;
-        
-      double rho_max   = dlt/wp;
-      double rho_max_2 = pow(3*charge_number/density_e[i], 1.0/3);
-      if (rho_max < rho_max_2) rho_max = rho_max_2;
-      double rho_max_3 = dlt*time_cooler;
-      if(rho_max > rho_max_3) rho_max = rho_max_3;
-        
-      //Coulomb Logarithms
-      double L_M = log(rho_max / (k*rho_L)); //there's a typo in the BETACOOL guide, the numerator here is rho_max
-      double L_A = log((k*rho_L) / rho_F);
-      double L_F = log(rho_F / rho_min);
-    
-      //If it's < 0, the interaction is absent
-      if( L_M < 1. ) L_M = 0.0;
-      if( L_A < 1. ) L_A = 0.0;
-      if( L_F < 1. ) L_F = 0.0;  
-
-      //Define the regions of the ion velocity domains
-      double result_trans,result_long;
-    
-      double ellipse = (v_tr[i]*v_tr[i])/(d_perp_e*d_perp_e) + (v_long[i]*v_long[i])/(d_paral_e*d_paral_e);
+  //The Number of multiple adiabatic collisions with a single electron
+  double N_col = 1 + d_perp_e/(k_pi*sqrt(v2 + d_paral_e*d_paral_e));
       
-      if(sqrt(v2) > d_perp_e) { //Region I
-              result_trans = 2*L_F + L_M*(v_tr[i]*v_tr[i] - 2*v_long[i]*v_long[i])/v2;
-              result_trans /= v3;
-          
-              result_long = 2 + 2*L_F + L_M*(3*v_tr[i]*v_tr[i]/v2);
-              result_long /= v3;
-      }   
-      else if(sqrt(v2) < d_paral_e) { //Region III
-              result_trans = 2*(L_F + N_col*L_A)/pow(d_perp_e,3) + L_M/pow(d_paral_e,3);
-              result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
+  //dynamic shielding radius
+  double rho_sh = sqrt(v2 + d_paral_e*d_paral_e) / wp;
+  //minimum impact parameter  
+  double rho_min = rho_min_const / (v2 + d_paral_e*d_paral_e); 
+  //intermediate impact parameter
+  double rho_F = rho_L * sqrt(v2 + d_paral_e*d_paral_e) / d_perp_e;
+        
+  double rho_max   = dlt/wp;
+  double rho_max_2 = pow(3*charge_number/density_e, 1.0/3);
+  if (rho_max < rho_max_2) rho_max = rho_max_2;
+  double rho_max_3 = dlt*time_cooler;
+  if(rho_max > rho_max_3) rho_max = rho_max_3;
+        
+  //Coulomb Logarithms
+  double L_M = log(rho_max / (k*rho_L)); //there's a typo in the BETACOOL guide, the numerator here is rho_max
+  double L_A = log((k*rho_L) / rho_F);
+  double L_F = log(rho_F / rho_min);
+    
+  //If it's < 0, the interaction is absent
+  if( L_M < 1. ) L_M = 0.0;
+  if( L_A < 1. ) L_A = 0.0;
+  if( L_F < 1. ) L_F = 0.0;  
+
+  //Define the regions of the ion velocity domains
+  double result_trans,result_long;
+    
+  double ellipse = (v_tr*v_tr)/(d_perp_e*d_perp_e) + (v_long*v_long)/(d_paral_e*d_paral_e);
+     
+  if(sqrt(v2) > d_perp_e) { //Region I
+       result_trans = 2*L_F + L_M*(v_tr*v_tr - 2*v_long*v_long)/v2;
+       result_trans /= v3;
+         
+        result_long = 2 + 2*L_F + L_M*(3*v_tr*v_tr/v2);
+        result_long /= v3;
+  }   
+  else if(sqrt(v2) < d_paral_e) { //Region III
+        result_trans = 2*(L_F + N_col*L_A)/pow(d_perp_e,3) + L_M/pow(d_paral_e,3);
+        result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
       }  
 
-      //Region II (a or b)
-      else{ //This constrains to a donut shape (d_paral_e < sqrt(v2) < d_perp_e).
-          result_trans = ((v_tr[i]*v_tr[i] - 2*v_long[i]*v_long[i])/v2) * (L_M/v3);
-          result_trans += (2/pow(d_perp_e,3)) * (L_F + N_col*L_A);
+  //Region II (a or b)
+  else{ //This constrains to a donut shape (d_paral_e < sqrt(v2) < d_perp_e).
+        result_trans = ((v_tr*v_tr - 2*v_long*v_long)/v2) * (L_M/v3);
+        result_trans += (2/pow(d_perp_e,3)) * (L_F + N_col*L_A);
           
-          if( ellipse <= 1.0 ){ // Region IIb
+        if( ellipse <= 1.0 ){ // Region IIb
               //This is the same as result_long in Region 3 
               result_long = 2*(L_F + N_col*L_A)/(d_perp_e*d_perp_e * d_paral_e) + L_M/pow(d_paral_e,3);
-          }
-          else{ //It must be Region IIa
-              result_long = (((3*v_tr[i]*v_tr[i]*L_M)/v2) + 2) / v3;
-              result_long += 2 * (L_F + N_col*L_A)/(d_perp_e*d_perp_e * v_long[i]);
-          }
-      } 
-        
-      //The factor of pi/2 comes from the difference between the constants
-      // used in Parkhomchuk with the constants used in the Meshkov representation
-      force_tr[i] = f_const * (k_pi/2) * density_e[i] * result_trans * v_tr[i];
-      force_long[i] = f_const * (k_pi/2) * density_e[i] * result_long * v_long[i];
-      if(do_test){    
-          outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
         }
+        else{ //It must be Region IIa
+              result_long = (((3*v_tr*v_tr*L_M)/v2) + 2) / v3;
+              result_long += 2 * (L_F + N_col*L_A)/(d_perp_e*d_perp_e * v_long);
+        }
+  } 
+        
+  //The factor of pi/2 comes from the difference between the constants
+  // used in Parkhomchuk with the constants used in the Meshkov representation
+  Mesh_force_tr = f_const * (k_pi/2) * density_e * result_trans * v_tr;
+  Mesh_force_long = f_const * (k_pi/2) * density_e * result_long * v_long;
+
+  return 0;
+}
+
+//This version for when d_perp_e and d_paral_e are doubles
+int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
+        double temperature, double magnetic_field, double d_perp_e, double d_paral_e, 
+        double time_cooler, double *force_tr, double *force_long,bool do_test) {
+    
+    //Open up an output file if we're in the testing phase
+    std::ofstream outfile;
+    double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+
+    if(do_test){
+      outfile.open("Meshkov.txt");
+    }          
+
+    for(unsigned long int i=0;i<ion_number; ++i){
+        double result_trans,result_long;
+      
+        Meshkov_force(v_tr[i], v_long[i], d_perp_e, d_paral_e, temperature, charge_number,
+                   density_e[i], time_cooler, magnetic_field, result_trans,result_long);
+
+        force_tr[i] = result_trans;
+        force_long[i] = result_long;
+      
+        if(do_test){
+          outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+      }
     }
     
     outfile.close();
@@ -381,9 +366,26 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
     return 0;
 }
 
-=======
->>>>>>> ForceAPI
+//This version for when d_perp_e and d_paral_e are arrays
+int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
+        double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, 
+        double time_cooler, double *force_tr, double *force_long) {
 
+    for(unsigned long int i=0;i<ion_number; ++i){
+        double result_trans,result_long;
+      
+        Meshkov_force(v_tr[i], v_long[i], d_perp_e[i], d_paral_e[i], temperature, charge_number,
+                   density_e[i], time_cooler, magnetic_field, result_trans,result_long);
+
+        force_tr[i] = result_trans;
+        force_long[i] = result_long;
+      
+    }
+    
+    return 0;
+}
+
+    
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                    ForceParas &force_paras, double *force_tr, double *force_long){
     switch (force_paras.formula()) {
@@ -391,7 +393,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             double temperature = force_paras.park_temperature_eff();
             double time_cooler = force_paras.time_cooler();
             double magnetic_field = force_paras.magnetic_field();
-            //Use this overloaded function if the ebeam is bunched
+            //Use this overloaded function if the ebeam is user-defined
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
                 double *d_paral_e = force_paras.ptr_d_paral_e();
@@ -410,7 +412,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             double temperature = force_paras.park_temperature_eff();
             double time_cooler = force_paras.time_cooler();
             double magnetic_field = force_paras.magnetic_field();
-        	//Use this overloaded function if the ebeam is bunched
+        	//Use this overloaded function if the ebeam is user-defined
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
                 double *d_paral_e = force_paras.ptr_d_paral_e();
@@ -431,12 +433,12 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             double temperature = force_paras.park_temperature_eff();
             double time_cooler = force_paras.time_cooler();
             double magnetic_field = force_paras.magnetic_field();
-        	if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
-                perror("Must use constant V_RMS for electrons for Meshkov model");
-//                double *d_perp_e = force_paras.ptr_d_perp_e();
-//                double *d_paral_e = force_paras.ptr_d_paral_e();
-//                Meshkov(charge_number, ion_number, v_tr, v_long, density_e, temperature, magnetic_field, d_perp_e,
-//                              d_paral_e, time_cooler, force_tr, force_long);
+        	
+            if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
+                double *d_perp_e = force_paras.ptr_d_perp_e();
+                double *d_paral_e = force_paras.ptr_d_paral_e();
+                Meshkov(charge_number, ion_number, v_tr, v_long, density_e, temperature, magnetic_field, d_perp_e,
+                              d_paral_e, time_cooler, force_tr, force_long);
         		break;
             }
             else {
