@@ -187,14 +187,19 @@ int ecool(ForceFormula ff, double *check_rates){
     ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
+
     
+//This set of test values was satisfied with the original F_const definitions 
+// in terms of k_ke in Parkhomchuk
 //    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
 //    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
 //    JSPEC_ASSERT_THROW(abs(rate_s + 0.0190261) < 1e-5);
 
-    JSPEC_ASSERT_THROW(abs(rate_x + 0.0087216) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_y + 0.00907129) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_s + 0.0191686) < 1e-5);
+//This set of test values is satisfied with the F_const defined
+// in terms of r_e in Parkhomchuk
+    JSPEC_ASSERT_THROW(abs(rate_x - check_rates[0]) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_y - check_rates[1]) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_s - check_rates[2]) < 1e-5);
 
     
     std::cout<<"Force calculation"<<std::endl;
@@ -609,23 +614,20 @@ int main(int, char**)
 {
     
     double check_rates[3];
-    check_rates[0] = -0.00865669;
-    check_rates[1] = -0.00900383;
-    check_rates[2] = -0.0190261;
-
+    check_rates[0] = -0.0087216;
+    check_rates[1] = -0.00907129;
+    check_rates[2] = -0.0191686;
     ecool(ForceFormula::PARKHOMCHUK,check_rates);
 
-    check_rates[0] = -0.00999503;
-    check_rates[1] = -0.0108123;
-    check_rates[2] = -0.0243214;
-    
+    check_rates[0] = -0.00503489;
+    check_rates[1] = -0.00544656;
+    check_rates[2] = -0.0122515;   
     ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
 
-    check_rates[0] = -1.72854;
-    check_rates[1] = -1.72863;
-    check_rates[2] = -2.61073;
-    
-    ecool(ForceFormula::MESHKOV,check_rates);
+//    check_rates[0] = -1.72854;
+//    check_rates[1] = -1.72863;
+//    check_rates[2] = -2.61073;    
+//    ecool(ForceFormula::MESHKOV,check_rates);
 
     dynamicibsbunched();
     dynamicibs();

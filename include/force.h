@@ -2,9 +2,10 @@
 #define FORCE_H
 
 #include <vector>
+#include <cmath>
 #include "constants.h"
 
-enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV};
+enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV,BUDKER};
 
 class ForceParas{
     ForceFormula formula_;
@@ -38,6 +39,9 @@ class ForceParas{
     int set_do_test(bool b){do_test_ = b; return 0;}
     ForceParas(ForceFormula formula):formula_(formula){};
 };
+
+//Force-dependent constants
+const double f_const = -4 * k_me_kg * pow(k_re*k_c*k_c,2); //for Parkhomchuk
 
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_z, double *density_e,
                   ForceParas &force_paras, double *force_tr, double *force_long);

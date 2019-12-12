@@ -50,7 +50,7 @@ std::vector<string> E_BEAM_ARGS = {"GAMMA", "TMP_TR", "TMP_L", "SHAPE", "RADIUS"
     "SIGMA_Z", "LENGTH", "E_NUMBER", "RH", "RV", "R_INNER", "R_OUTTER", "PARTICLE_FILE", "TOTAL_PARTICLE_NUMBER",
     "BOX_PARTICLE_NUMBER", "LINE_SKIP", "VEL_POS_CORR","BINARY_FILE","BUFFER_SIZE"};
 std::vector<string> ECOOL_ARGS = {"SAMPLE_NUMBER", "FORCE_FORMULA"};
-std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV"};
+std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","BUDKER"};
 std::vector<string> SIMULATION_ARGS = {"TIME", "STEP_NUMBER", "SAMPLE_NUMBER", "IBS", "E_COOL", "OUTPUT_INTERVAL",
     "SAVE_PARTICLE_INTERVAL", "OUTPUT_FILE", "MODEL", "REF_BET_X", "REF_BET_Y", "REF_ALF_X", "REF_ALF_Y",
     "REF_DISP_X", "REF_DISP_Y", "REF_DISP_DX", "REF_DISP_DY", "FIXED_BUNCH_LENGTH", "RESET_TIME", "OVERWRITE",
@@ -1420,6 +1420,8 @@ void set_ecool(string &str, Set_ecool *ecool_args){
         if (val=="PARKHOMCHUK") ecool_args->force = ForceFormula::PARKHOMCHUK;
         else if (val=="DERBENEVSKRINSKY") ecool_args->force = ForceFormula::DERBENEVSKRINSKY;
         else if (val=="MESHKOV") ecool_args->force = ForceFormula::MESHKOV;
+        else if (val=="BUDKER") ecool_args->force = ForceFormula::BUDKER;
+
         else assert(false&&"Friction force formula NOT exists!");
     }
     else {

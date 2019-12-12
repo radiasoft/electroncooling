@@ -1,6 +1,5 @@
 #include "force.h"
 
-#include <cmath>
 #include <cstdio>
 
 #include <iostream>
@@ -9,14 +8,14 @@
 #include <gsl/gsl_errno.h>
 
 //This function is used for calculating the forces on single particles or arrays of particles
-double parkhomchuk_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
-                         double density_e,double time_cooler,double magnetic_field){
+double parkhomchuk_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
+                         int charge_number, double density_e,double time_cooler,double magnetic_field){
 
     double v2 = v_tr*v_tr + v_long*v_long;    
     double force = 0.0;
     
     if(v2>0){
-        double f_const = -4 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+//        double f_const = -4 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
         double rho_lamor = k_me_kg * d_perp_e / ( magnetic_field * k_e );
         double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
         double dlt2_eff_e = d_paral_e*d_paral_e+v2_eff_e;
@@ -38,7 +37,7 @@ double parkhomchuk_force(double v_tr, double v_long, double d_perp_e, double d_p
         double lc = log((rho_max+rho_min+rho_lamor)/(rho_min+rho_lamor));   //Coulomb Logarithm
 
         //Calculate friction force
-        force = f_const * density_e * lc / ( dlt*dlt*dlt );
+        force = f_const * charge_number*charge_number * density_e * lc / ( dlt*dlt*dlt );
     }
 
     //This factor of the force must be multiplied by either v_tr or v_long to truly be
@@ -67,7 +66,7 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
                 double *force_tr, double *force_long, bool do_test) {
     
     //TODO: Remove the expectation of f_const from the test output file, then remove this definition   
-    double f_const = -4 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+//    double f_const = -4 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
 
     //Open up an output file if we're in the testing phase
     std::ofstream outfile;
@@ -85,7 +84,7 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
         force_long[i] = f*v_long[i];
 
         if(do_test){
-            outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+            outfile<<f_const * charge_number*charge_number <<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
         }
     }
     
@@ -140,7 +139,7 @@ double DS_long_integrand(double alpha, void *params){
 int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
                          double density_e,double time_cooler,double magnetic_field, double &DS_force_tr, double &DS_force_long){
     
-  double f_const    = -2 * charge_number*charge_number * density_e * k_me_kg * pow(k_re*k_c*k_c,2);
+//  double f_const    = -2 * charge_number*charge_number * density_e * k_me_kg * pow(k_re*k_c*k_c,2);
     
   double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
@@ -186,10 +185,10 @@ int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, doub
 
   gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_long,&error_long);
      
-  //The factor of pi/(2sqrt(2pi)) comes from the difference between the constants
+  //The factor of (0.5*pi/(2sqrt(2pi))) comes from the difference between the constants
   // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
-  DS_force_tr = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * result_trans / (d_paral_e*d_paral_e); 
-  DS_force_long = f_const * (k_pi/(2*sqrt(2*k_pi))) * lm * result_long / (d_paral_e*d_paral_e);        
+  DS_force_tr = f_const * density_e * charge_number*charge_number * 0.5*(k_pi/(2*sqrt(2*k_pi))) * lm * result_trans / (d_paral_e*d_paral_e); 
+  DS_force_long = f_const * density_e * charge_number*charge_number * 0.5*(k_pi/(2*sqrt(2*k_pi))) * lm * result_long / (d_paral_e*d_paral_e);        
           
   gsl_integration_workspace_free(w);
    
@@ -219,7 +218,7 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
         double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
         double *force_tr, double *force_long, bool do_test) {    
 
-  double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+//  double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
     
   //Open up an output file if we're in the testing phase
   std::ofstream outfile;
@@ -236,7 +235,9 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
       force_tr[i] = result_trans;
       force_long[i] = result_long;
       
+      
       if(do_test){
+          //TODO: Remove f_const as a column
           outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
       }
     }
@@ -251,7 +252,7 @@ int Meshkov_force(double v_tr, double v_long, double d_perp_e, double d_paral_e,
     
   //Constant term for Parkhomchuk functions, above
 //  double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
-  double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+  //double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
 
   double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
@@ -328,8 +329,8 @@ int Meshkov_force(double v_tr, double v_long, double d_perp_e, double d_paral_e,
         
   //The factor of pi/2 comes from the difference between the constants
   // used in Parkhomchuk with the constants used in the Meshkov representation
-  Mesh_force_tr = f_const * (k_pi/2) * density_e * result_trans * v_tr;
-  Mesh_force_long = f_const * (k_pi/2) * density_e * result_long * v_long;
+  Mesh_force_tr = f_const * charge_number*charge_number * (k_pi/2) * density_e * result_trans * v_tr;
+  Mesh_force_long = f_const * charge_number*charge_number * (k_pi/2) * density_e * result_long * v_long;
 
   return 0;
 }
@@ -385,14 +386,108 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
     return 0;
 }
 
+
+int Budker_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
+                  double density_e,double time_cooler,double magnetic_field, double &Bud_force_tr, double &Bud_force_long){
+
+    //Here we are assuming a maxwellian distribution, d_paral_e = d_perp_e
+
+//    double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+
+    double v_mag = sqrt(v_tr*v_tr + v_long*v_long);
+
+    double rho_lamor = k_me_kg * d_perp_e / ( magnetic_field * k_e );
+    double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
+    double dlt2_eff_e = d_paral_e*d_paral_e+v2_eff_e;
+
+    double dlt = v_mag*v_mag + dlt2_eff_e;
+
+    double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
+    double rho_min = rho_min_const/dlt;
+    dlt = sqrt(dlt);
+    double wp_const = 4*k_pi*k_c*k_c*k_e*k_ke/(k_me*1e6);
+    double wp = sqrt(wp_const*density_e);
+
+    double rho_max = dlt/wp;
+    double rho_max_2 = pow(3*charge_number/density_e, 1.0/3);
+    if(rho_max<rho_max_2) rho_max = rho_max_2;
+    double rho_max_3 = dlt*time_cooler;
+    if(rho_max>rho_max_3) rho_max = rho_max_3;
+
+    double lc = log((rho_max+rho_min+rho_lamor)/(rho_min+rho_lamor));   //Coulomb Logarithm
+    
+    double arg = v_mag/d_paral_e;
+    double int_result = erf(arg/sqrt(2));
+    double phi = int_result  - sqrt(2/k_pi)*arg+exp((-arg*arg)/2);
+    double result = phi * pow(v_mag,-3);
+    
+    Bud_force_tr = f_const * charge_number*charge_number * (k_pi/2) * lc * density_e * result * v_tr;
+    Bud_force_long = f_const * charge_number*charge_number * (k_pi/2) * lc * density_e * result * v_long;
+    
+    return 0;
+}
+
+//This version for when d_perp_e and d_paral_e are doubles
+int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
+        double temperature, double magnetic_field, double d_perp_e, double d_paral_e, 
+        double time_cooler, double *force_tr, double *force_long,bool do_test) {
+    
+    //Open up an output file if we're in the testing phase
+    std::ofstream outfile;
+    double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+
+    if(do_test){
+      outfile.open("Budker.txt");
+    }          
+
+    for(unsigned long int i=0;i<ion_number; ++i){
+        double result_trans,result_long;
+      
+        Budker_force(v_tr[i], v_long[i], d_perp_e, d_paral_e, temperature, charge_number,
+                   density_e[i], time_cooler, magnetic_field, result_trans,result_long);
+
+        force_tr[i] = result_trans;
+        force_long[i] = result_long;
+      
+        if(do_test){
+          outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
+      }
+    }
+    
+    outfile.close();
+    
+    return 0;
+}
+
+//This version for when d_perp_e and d_paral_e are arrays
+int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
+        double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, 
+        double time_cooler, double *force_tr, double *force_long) {
+
+    for(unsigned long int i=0;i<ion_number; ++i){
+        double result_trans,result_long;
+      
+        Budker_force(v_tr[i], v_long[i], d_perp_e[i], d_paral_e[i], temperature, charge_number,
+                   density_e[i], time_cooler, magnetic_field, result_trans,result_long);
+
+        force_tr[i] = result_trans;
+        force_long[i] = result_long;
+      
+    }
+    
+    return 0;
+}
+
     
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                    ForceParas &force_paras, double *force_tr, double *force_long){
+
+    double temperature = force_paras.park_temperature_eff();
+    double time_cooler = force_paras.time_cooler();
+    double magnetic_field = force_paras.magnetic_field();
+
     switch (force_paras.formula()) {
         case ForceFormula::PARKHOMCHUK: {
-            double temperature = force_paras.park_temperature_eff();
-            double time_cooler = force_paras.time_cooler();
-            double magnetic_field = force_paras.magnetic_field();
             //Use this overloaded function if the ebeam is user-defined
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
@@ -409,9 +504,6 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             break;
         }
         case ForceFormula::DERBENEVSKRINSKY: {
-            double temperature = force_paras.park_temperature_eff();
-            double time_cooler = force_paras.time_cooler();
-            double magnetic_field = force_paras.magnetic_field();
         	//Use this overloaded function if the ebeam is user-defined
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
@@ -429,11 +521,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             }
             break;
         }
-        case ForceFormula::MESHKOV: {
-            double temperature = force_paras.park_temperature_eff();
-            double time_cooler = force_paras.time_cooler();
-            double magnetic_field = force_paras.magnetic_field();
-        	
+        case ForceFormula::MESHKOV: {       	
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
                 double *d_paral_e = force_paras.ptr_d_paral_e();
@@ -450,7 +538,23 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             }
             break;
         }
-
+        case ForceFormula::BUDKER: {        	
+            if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
+                double *d_perp_e = force_paras.ptr_d_perp_e();
+                double *d_paral_e = force_paras.ptr_d_paral_e();
+                Budker(charge_number, ion_number, v_tr, v_long, density_e, temperature, magnetic_field, d_perp_e,
+                              d_paral_e, time_cooler, force_tr, force_long);
+        		break;
+            }
+            else {
+                double d_perp_e = force_paras.d_perp_e();   //From ebeam.v_rms_tr
+                double d_paral_e = force_paras.d_paral_e(); //From ebeam.v_rms_long
+                
+                Budker(charge_number, ion_number, v_tr, v_long, density_e, temperature,  magnetic_field, d_perp_e,
+                            	d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
+            }
+            break;
+        }
 
         default: {
             perror("Choose your formula for friction force calculation!");
