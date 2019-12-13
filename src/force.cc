@@ -87,9 +87,11 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
             outfile<<f_const * charge_number*charge_number <<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
         }
     }
-    
-    outfile.close();
 
+    if(do_test){
+        outfile.close();
+    }
+    
     return 0;
 }
 
@@ -241,9 +243,11 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
           outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
       }
     }
+
+    if(do_test){
+        outfile.close();
+    }
     
-    outfile.close();
-       
     return 0;
 }
 
@@ -361,8 +365,10 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
           outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
       }
     }
-    
-    outfile.close();
+
+    if(do_test){
+        outfile.close();
+    }
     
     return 0;
 }
@@ -388,37 +394,51 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
 
 
 int Budker_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
-                  double density_e,double time_cooler,double magnetic_field, double &Bud_force_tr, double &Bud_force_long){
+                  double density_e,double time_cooler, double &Bud_force_tr, double &Bud_force_long){
 
     //Here we are assuming a maxwellian distribution, d_paral_e = d_perp_e
-
-//    double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
+    // and ignoring magnetic field
+    
+    double delta_e = d_paral_e; 
 
     double v_mag = sqrt(v_tr*v_tr + v_long*v_long);
+    
+/*
+    //The mean minimal impact parameter
+    double rho_min = charge_number * k_e*k_e / k_me_kg;
+    rho_min /= v_tr*v_tr + v_long*v_long + 2*delta_e*delta_e;
 
-    double rho_lamor = k_me_kg * d_perp_e / ( magnetic_field * k_e );
     double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
-    double dlt2_eff_e = d_paral_e*d_paral_e+v2_eff_e;
+    double dlt2_eff_e = delta_e*delta_e+v2_eff_e;
 
     double dlt = v_mag*v_mag + dlt2_eff_e;
-
-    double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
-    double rho_min = rho_min_const/dlt;
     dlt = sqrt(dlt);
     double wp_const = 4*k_pi*k_c*k_c*k_e*k_ke/(k_me*1e6);
     double wp = sqrt(wp_const*density_e);
-
-    double rho_max = dlt/wp;
+    
+    double rho_max = dlt/wp; 
     double rho_max_2 = pow(3*charge_number/density_e, 1.0/3);
     if(rho_max<rho_max_2) rho_max = rho_max_2;
     double rho_max_3 = dlt*time_cooler;
     if(rho_max>rho_max_3) rho_max = rho_max_3;
-
-    double lc = log((rho_max+rho_min+rho_lamor)/(rho_min+rho_lamor));   //Coulomb Logarithm
     
-    double arg = v_mag/d_paral_e;
-    double int_result = erf(arg/sqrt(2));
-    double phi = int_result  - sqrt(2/k_pi)*arg+exp((-arg*arg)/2);
+    double lc = log(rho_max/rho_min);
+*/
+    
+    double rho_max = (v_mag*v_mag + delta_e*delta_e)*k_me;
+    rho_max /= sqrt(4 * k_pi * density_e * k_e*k_e);
+    
+    double rho_max_2 = pow(3*charge_number / density_e,1/3);
+    if(rho_max < rho_max_2) rho_max = rho_max_2;
+    double rho_max_3 = v_mag*time_cooler;
+    if(rho_max > rho_max_3) rho_max = rho_max_3;
+    
+    double rho_min = charge_number * k_e*k_e / (k_me*(v_mag*v_mag + delta_e*delta_e));
+    double lc = log(rho_max/rho_min);
+    if(lc<0.) lc = 0.;
+    
+    double arg = v_mag/delta_e;
+    double phi = sqrt(2/k_pi) * (erf(arg/sqrt(2)) - arg *exp((-arg*arg)/2));
     double result = phi * pow(v_mag,-3);
     
     Bud_force_tr = f_const * charge_number*charge_number * (k_pi/2) * lc * density_e * result * v_tr;
@@ -429,7 +449,7 @@ int Budker_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, 
 
 //This version for when d_perp_e and d_paral_e are doubles
 int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
-        double temperature, double magnetic_field, double d_perp_e, double d_paral_e, 
+        double temperature, double d_perp_e, double d_paral_e, 
         double time_cooler, double *force_tr, double *force_long,bool do_test) {
     
     //Open up an output file if we're in the testing phase
@@ -444,7 +464,7 @@ int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double
         double result_trans,result_long;
       
         Budker_force(v_tr[i], v_long[i], d_perp_e, d_paral_e, temperature, charge_number,
-                   density_e[i], time_cooler, magnetic_field, result_trans,result_long);
+                   density_e[i], time_cooler, result_trans,result_long);
 
         force_tr[i] = result_trans;
         force_long[i] = result_long;
@@ -453,22 +473,23 @@ int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double
           outfile<<f_const<<", "<<v_tr[i]<<", "<<v_long[i]<<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
       }
     }
-    
-    outfile.close();
+    if(do_test){
+        outfile.close();
+    }
     
     return 0;
 }
 
 //This version for when d_perp_e and d_paral_e are arrays
 int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
-        double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, 
+        double temperature, double *d_perp_e, double *d_paral_e, 
         double time_cooler, double *force_tr, double *force_long) {
 
     for(unsigned long int i=0;i<ion_number; ++i){
         double result_trans,result_long;
       
         Budker_force(v_tr[i], v_long[i], d_perp_e[i], d_paral_e[i], temperature, charge_number,
-                   density_e[i], time_cooler, magnetic_field, result_trans,result_long);
+                   density_e[i], time_cooler, result_trans,result_long);
 
         force_tr[i] = result_trans;
         force_long[i] = result_long;
@@ -542,7 +563,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
             if(force_paras.ptr_d_perp_e()||force_paras.ptr_d_paral_e()) {
                 double *d_perp_e = force_paras.ptr_d_perp_e();
                 double *d_paral_e = force_paras.ptr_d_paral_e();
-                Budker(charge_number, ion_number, v_tr, v_long, density_e, temperature, magnetic_field, d_perp_e,
+                Budker(charge_number, ion_number, v_tr, v_long, density_e, temperature, d_perp_e,
                               d_paral_e, time_cooler, force_tr, force_long);
         		break;
             }
@@ -550,7 +571,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
                 double d_perp_e = force_paras.d_perp_e();   //From ebeam.v_rms_tr
                 double d_paral_e = force_paras.d_paral_e(); //From ebeam.v_rms_long
                 
-                Budker(charge_number, ion_number, v_tr, v_long, density_e, temperature,  magnetic_field, d_perp_e,
+                Budker(charge_number, ion_number, v_tr, v_long, density_e, temperature, d_perp_e,
                             	d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
             }
             break;

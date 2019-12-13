@@ -275,7 +275,7 @@ void testForce(){
   SetupModel(ForceFormula::BUDKER);
   data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpBudker.txt");
   test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Budker.txt");
-  //slope = CompareOutput(data_path,test_path);
+  slope = CompareOutput(data_path,test_path);
   //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
   
     
