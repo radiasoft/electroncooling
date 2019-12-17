@@ -77,7 +77,7 @@ void SetupModel(ForceFormula ff)
   // a single velocity in a straightforward way.
   unsigned int n_tr = 4;
   unsigned int n_long = 400;
-  EcoolRateParas ecool_rate_paras(n_tr, n_long);
+  EcoolRateParas ecool_rate_paras(n_tr, n_long); //This sets IonSample::SingleParticle
 
   double rate_x, rate_y, rate_s;
             

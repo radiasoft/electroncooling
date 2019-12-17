@@ -15,7 +15,6 @@ double parkhomchuk_force(double v_tr, double v_long, double d_perp_e, double d_p
     double force = 0.0;
     
     if(v2>0){
-//        double f_const = -4 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
         double rho_lamor = k_me_kg * d_perp_e / ( magnetic_field * k_e );
         double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
         double dlt2_eff_e = d_paral_e*d_paral_e+v2_eff_e;
@@ -65,9 +64,6 @@ int parkhomchuk(int charge_number, unsigned long int ion_number, double *v_tr, d
                 double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
                 double *force_tr, double *force_long, bool do_test) {
     
-    //TODO: Remove the expectation of f_const from the test output file, then remove this definition   
-//    double f_const = -4 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
-
     //Open up an output file if we're in the testing phase
     std::ofstream outfile;
     if(do_test){
@@ -141,13 +137,10 @@ double DS_long_integrand(double alpha, void *params){
 int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
                          double density_e,double time_cooler,double magnetic_field, double &DS_force_tr, double &DS_force_long){
     
-//  double f_const    = -2 * charge_number*charge_number * density_e * k_me_kg * pow(k_re*k_c*k_c,2);
-    
   double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
   double rho_L      = k_me_kg * d_perp_e / ( magnetic_field * k_e );
   double wp_const   = 4*k_pi * k_c*k_c * k_e * k_ke/(k_me*1e6);
-    
     
   //Calculate rho_max as in the Parkhomchuk model
   double v2      = v_tr*v_tr + v_long*v_long;
@@ -174,6 +167,7 @@ int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, doub
   params.width = d_paral_e; //The electron bunch width RMS
       
   unsigned int space_size = 100;
+  gsl_set_error_handler_off();
   gsl_integration_workspace *w = gsl_integration_workspace_alloc(space_size);
   double result_trans,result_long, error_trans,error_long;
   gsl_function F;
@@ -181,16 +175,25 @@ int DS_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, doub
   F.params = &params;
   F.function = &DS_trans_integrand;
 
-  gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_trans,&error_trans);
-        
+  int status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-6,space_size,1,w,&result_trans,&error_trans);
+  
+  if(status == GSL_EDIVERGE){
+    status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result_trans,&error_trans);
+  }
+       
   F.function = &DS_long_integrand;
 
-  gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-7,space_size,1,w,&result_long,&error_long);
+  status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-6,space_size,1,w,&result_long,&error_long);
+  if(status == GSL_EDIVERGE){
+    status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result_long,&error_long);
+  }
      
   //The factor of (0.5*pi/(2sqrt(2pi))) comes from the difference between the constants
   // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
-  DS_force_tr = f_const * density_e * charge_number*charge_number * 0.5*(k_pi/(2*sqrt(2*k_pi))) * lm * result_trans / (d_paral_e*d_paral_e); 
-  DS_force_long = f_const * density_e * charge_number*charge_number * 0.5*(k_pi/(2*sqrt(2*k_pi))) * lm * result_long / (d_paral_e*d_paral_e);        
+  DS_force_tr = f_const * density_e * charge_number*charge_number * 0.5*(k_pi/(2*sqrt(2*k_pi))) * lm * result_trans;
+  DS_force_tr /= (d_paral_e*d_paral_e); 
+  DS_force_long = f_const * density_e * charge_number*charge_number * 0.5*(k_pi/(2*sqrt(2*k_pi))) * lm * result_long;
+  DS_force_long /= (d_paral_e*d_paral_e);        
           
   gsl_integration_workspace_free(w);
    
@@ -220,8 +223,6 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
         double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
         double *force_tr, double *force_long, bool do_test) {    
 
-//  double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
-    
   //Open up an output file if we're in the testing phase
   std::ofstream outfile;
   if(do_test){
@@ -254,10 +255,6 @@ int DerbenevSkrinsky(int charge_number, unsigned long int ion_number, double *v_
 int Meshkov_force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,int charge_number,
                   double density_e,double time_cooler,double magnetic_field, double &Mesh_force_tr, double &Mesh_force_long){
     
-  //Constant term for Parkhomchuk functions, above
-//  double f_const    = -4 * charge_number*charge_number * k_c*k_c * k_ke*k_ke * k_e*k_e*k_e /(k_me*1e6);
-  //double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
-
   double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
   double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
   double rho_L      = (k_me*1e6) * d_perp_e / (k_c*k_c * magnetic_field);
@@ -346,7 +343,6 @@ int Meshkov(int charge_number, unsigned long int ion_number, double *v_tr, doubl
     
     //Open up an output file if we're in the testing phase
     std::ofstream outfile;
-    double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
 
     if(do_test){
       outfile.open("Meshkov.txt");
@@ -454,7 +450,6 @@ int Budker(int charge_number, unsigned long int ion_number, double *v_tr, double
     
     //Open up an output file if we're in the testing phase
     std::ofstream outfile;
-    double f_const = -2 * charge_number*charge_number * k_me_kg * pow(k_re*k_c*k_c,2);
 
     if(do_test){
       outfile.open("Budker.txt");
@@ -539,6 +534,7 @@ int friction_force(int charge_number, unsigned long int ion_number, double *v_tr
 
                 DerbenevSkrinsky(charge_number, ion_number, v_tr, v_long, density_e, temperature,  magnetic_field, d_perp_e,
                             	d_paral_e, time_cooler, force_tr, force_long, force_paras.do_test());
+
             }
             break;
         }
