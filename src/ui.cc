@@ -7,6 +7,7 @@
 #include "beam.h"
 #include "constants.h"
 #include "ibs.h"
+#include "force.h"
 
 using std::string;
 
@@ -581,20 +582,38 @@ void calculate_ecool(Set_ptrs &ptrs) {
     int n_sample = ptrs.ecool_ptr->n_sample;
     assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
     EcoolRateParas ecool_paras(n_sample);
-//    std::string force_formula = ptrs.ecool_ptr->force;
-//    assert(std::find(FRICTION_FORCE_FORMULA.begin(),FRICTION_FORCE_FORMULA.end(),force_formula)!=FRICTION_FORCE_FORMULA.end()
-//               && "UNKNOWN FRICTION FORCE FORMULA SECTION_ECOOL!");
-//    ForceFormula force;
-//    if (force_formula == "PARKHOMCHUK") {
-//        force = ForceFormula::PARKHOMCHUK;
-//    }
-//    ForceParas force_paras(force);
 
-    ForceParas force_paras(ptrs.ecool_ptr->force);
+    /*
+    ForceFormula force_formula = ptrs.ecool_ptr->force;
+    switch(force_formula){
+        case (ForceFormula::PARKHOMCHUK):
+            force_paras = new Force_Parkhomchuk();
+            break;
+        
+        case(ForceFormula::DERBENEVSKRINSKY):
+            force_paras = new Force_DS();
+            break;
+
+        case(ForceFormula::MESHKOV):
+            force_paras = new Force_Meshkov();
+            break;
+
+        case(ForceFormula::BUDKER):
+            force_paras = new Force_Budker();
+            break;
+            
+        case(ForceFormula::ERLANGEN):
+            assert(1==0 && "ERLANGEN NOT YET IMPLEMENTED!");
+            break;
+*/
+    force_paras = ChooseForce(ptrs.ecool_ptr->force);
+    
+    
+    
     assert(ptrs.ion_beam.get()!=nullptr && "MUST CREATE THE ION BEAM BEFORE CALCULATE ELECTRON COOLING RATE!");
     assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATE ELECTRON COOLING RATE!");
     double rx, ry, rz;
-    ecooling_rate(ecool_paras, force_paras, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring, rx, ry, rz);
+    ecooling_rate(ecool_paras, *force_paras, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring, rx, ry, rz);
     ptrs.ecool_rate.at(0) = rx;
     ptrs.ecool_rate.at(1) = ry;
     ptrs.ecool_rate.at(2) = rz;
@@ -793,15 +812,33 @@ void run_simulation(Set_ptrs &ptrs) {
             dynamic_paras->set_n_sample(n_sample);
         }
         ecool_paras = new EcoolRateParas(n_sample);
-//        std::string force_formula = ptrs.ecool_ptr->force;
-//        assert(std::find(FRICTION_FORCE_FORMULA.begin(),FRICTION_FORCE_FORMULA.end(),force_formula)!=FRICTION_FORCE_FORMULA.end()
-//                   && "UNKNOWN FRICTION FORCE FORMULA SECTION_ECOOL!");
-//        ForceFormula force;
-//        if (force_formula == "PARKHOMCHUK") {
-//            force = ForceFormula::PARKHOMCHUK;
-//        }
-//        force_paras = new ForceParas(force);
-        force_paras = new ForceParas(ptrs.ecool_ptr->force);
+        
+        force_paras = ChooseForce(ptrs.ecool_ptr->force);
+/*
+                                  ForceFormula force_formula = ptrs.ecool_ptr->force;
+        switch(force_formula){
+            case (ForceFormula::PARKHOMCHUK):
+                force_paras = new Force_Parkhomchuk();
+                break;
+        
+            case(ForceFormula::DERBENEVSKRINSKY):
+                force_paras = new Force_DS();
+                break;
+
+            case(ForceFormula::MESHKOV):
+                force_paras = new Force_Meshkov();
+                break;
+
+            case(ForceFormula::BUDKER):
+                force_paras = new Force_Budker();
+                break;
+            
+            case(ForceFormula::ERLANGEN):
+                assert(1==0 && "ERLANGEN NOT YET IMPLEMENTED!");
+                break;
+
+        }
+*/        
     }
 
     if(ibs) {

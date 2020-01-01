@@ -5,9 +5,10 @@
 #include <cmath>
 #include "constants.h"
 
-enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV,BUDKER};
+enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV,BUDKER,ERLANGEN};
 
 class ForceParas{
+ protected:
     ForceFormula formula_;
     double park_temperature_eff_ = 0;
     double magnetic_field_ = 0;
@@ -17,16 +18,18 @@ class ForceParas{
     double *ptr_d_paral_e_ = nullptr;
     double time_cooler_;
     bool do_test_ = false;
+    const char* test_filename = "BASE.txt";
+    double f_const = 0.0;
  public:
     ForceFormula formula(){return formula_;}
-    double park_temperature_eff(){return park_temperature_eff_;}
-    double magnetic_field(){return magnetic_field_;}
-    double d_perp_e(){return d_perp_e_;}
-    double d_paral_e(){return d_paral_e_;}
-    double *ptr_d_perp_e(){return ptr_d_perp_e_;}
-    double *ptr_d_paral_e(){return ptr_d_paral_e_;}
-    double time_cooler(){return time_cooler_;}
-    bool do_test(){return do_test_;}
+    double park_temperature_eff() const {return park_temperature_eff_;}
+    double magnetic_field() const {return magnetic_field_;}
+    double d_perp_e() const {return d_perp_e_;}
+    double d_paral_e() const {return d_paral_e_;}
+    double *ptr_d_perp_e() const {return ptr_d_perp_e_;}
+    double *ptr_d_paral_e() const {return ptr_d_paral_e_;}
+    double time_cooler() const {return time_cooler_;}
+    bool do_test() const {return do_test_;}
     int set_park_temperature_eff(double x){park_temperature_eff_ = x; return 0;}
     int set_magnetic_field(double x){magnetic_field_=x; return 0;}
     int set_d_perp_e(double x){d_perp_e_ = x; return 0;}
@@ -38,12 +41,111 @@ class ForceParas{
     int set_time_cooler(double x){time_cooler_ = x; return 0;}
     int set_do_test(bool b){do_test_ = b; return 0;}
     ForceParas(ForceFormula formula):formula_(formula){};
+    
+    int ApplyForce(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
+                double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, double time_cooler,
+                double *force_tr, double *force_long);
+    int ApplyForce(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
+                double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
+                double *force_tr, double *force_long, bool do_test);
+    
+    virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
+                       double density_e,double time_cooler,double magnetic_field, double &result_trans, double &result_long) = 0;      
 };
 
-//Force-dependent constants
-const double f_const = -4 * k_me_kg * pow(k_re*k_c*k_c,2); //for Parkhomchuk
+class Force_Parkhomchuk : public ForceParas{
+    private:
+    //Force-dependent constants
+        const double f_const = -4 * k_me_kg * pow(k_re*k_c*k_c,2); //for Parkhomchuk
+        const char* test_filename = "Parkhomchuk.txt";
+    public:
+        Force_Parkhomchuk():ForceParas(ForceFormula::PARKHOMCHUK){};
+        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
+                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
+};
+
+class Force_DS : public ForceParas{
+    private:
+        //Convenience struct to pass all of the information
+        // needed to calculate the integral
+        struct int_info {
+            double V_trans;
+            double V_long;
+            double width; 
+        };
+        //The factor of (0.5*pi/(2sqrt(2pi))) comes from the difference between the constants
+        // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
+        const double f_const = -2 * (k_pi/(2*sqrt(2*k_pi))) * k_me_kg * pow(k_re*k_c*k_c,2);
+        const char* test_filename = "DerbenevSkrinsky.txt";
+    
+        //These must be static so they can be passed to GSL integration
+        static double trans_integrand(double alpha,void *params);
+        static double long_integrand(double alpha, void *params);
+    
+    public:
+        Force_DS():ForceParas(ForceFormula::DERBENEVSKRINSKY){};
+        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
+                            double density_e,double time_cooler,double magnetic_field,double &force_result_trans, double &force_result_long);
+    
+    
+};
+
+class Force_Meshkov : public ForceParas{
+    private:
+    //Force-dependent constants
+        //The factor of pi/2 comes from the difference between the constants
+        // used in Parkhomchuk with the constants used in the Meshkov representation
+        const double f_const = -4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2); 
+        const char* test_filename = "Meshkov.txt";
+        double k_ = 2;
+    public:
+        int set_k(double k){k_ = k; return 0;}
+        Force_Meshkov():ForceParas(ForceFormula::MESHKOV){};
+        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
+                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
+};
+
+class Force_Budker : public ForceParas{
+    private:
+    //Force-dependent constants
+        //The factor of pi/2 comes from the difference between the constants
+        // used in Parkhomchuk with the constants used in the Meshkov representation
+        const double f_const = -4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2); 
+        const char* test_filename = "Budker.txt";
+    public:
+        Force_Budker():ForceParas(ForceFormula::BUDKER){};
+        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
+                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
+};
+
+class Force_Erlangen : public ForceParas{
+    private:
+        const double f_const = -4 * k_pi * pow(k_e,4)/k_me;
+        const char* test_filename = "Erlangen.txt";
+        bool fast = true;
+        bool stretched = false;
+        bool tight = false;
+    
+        struct int_info {
+            double V_trans;
+            double V_long;
+            double d_perp_e;
+            double d_paral_e;
+            double width; 
+        };
+    
+        static double fast_trans(double *k, size_t dim, void *params);
+        static double fast_long(double *k, size_t dim, void *params);
+    
+    public:
+        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN){};
+         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
+                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
+};
 
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_z, double *density_e,
                   ForceParas &force_paras, double *force_tr, double *force_long);
+
+ForceParas* ChooseForce(ForceFormula force_formula);
 
 #endif // FORCE_H
