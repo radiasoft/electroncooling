@@ -17,6 +17,9 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
                             double temperature, double magnetic_field, double *d_perp_e, double *d_paral_e, double time_cooler,
                             double *force_tr, double *force_long) {
 
+
+//Compiler should ignore #pragma it doesn't understand
+    #pragma omp parallel for  
     for(unsigned long int i=0; i<ion_number; ++i){
         double result_trans,result_long;
         force(v_tr[i],v_long[i],d_perp_e[i],d_paral_e[i],temperature,charge_number,
@@ -36,9 +39,13 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
     //Open up an output file if we're in the testing phase
     std::ofstream outfile;
     if(do_test){
-      outfile.open(test_filename);
+      outfile.open(test_filename_);
     }   
-    
+
+//Compiler should ignore #pragma it doesn't understand
+//TODO: Check the effect of this on do_test output
+    #pragma omp parallel for ordered schedule(dynamic,10)
+
     for(unsigned long int i=0; i<ion_number; ++i){
         double result_trans,result_long;
         force(v_tr[i],v_long[i],d_perp_e,d_paral_e,temperature,charge_number,
@@ -49,7 +56,8 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
         force_long[i] = result_long;
 
         if(do_test){
-            outfile<<f_const * charge_number*charge_number <<", "<<v_tr[i]<<", "<<v_long[i]
+            #pragma omp ordered
+            outfile<<f_const_ * charge_number*charge_number <<", "<<v_tr[i]<<", "<<v_long[i]
                    <<", "<<density_e[i]<<", "<<force_tr[i]<<", "<<force_long[i]<<"\n";
         }
     }
@@ -90,7 +98,7 @@ void Force_Parkhomchuk::force(double v_tr, double v_long, double d_perp_e, doubl
         double lc = log((rho_max+rho_min+rho_lamor)/(rho_min+rho_lamor));   //Coulomb Logarithm
 
         //Calculate friction force
-        force = f_const * charge_number*charge_number * density_e * lc / ( dlt*dlt*dlt );
+        force = f_const_ * charge_number*charge_number * density_e * lc / ( dlt*dlt*dlt );
     }
 
     //This factor of the force must be multiplied by either v_tr or v_long to truly be
@@ -188,10 +196,10 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
     status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result_long,&error_long);
   }
      
-  force_result_tr = f_const * density_e * charge_number*charge_number * lm * result_trans;
+  force_result_tr = f_const_ * density_e * charge_number*charge_number * lm * result_trans;
   force_result_tr /= (d_paral_e*d_paral_e); 
 
-  force_result_long = f_const * density_e * charge_number*charge_number * lm * result_long;
+  force_result_long = f_const_ * density_e * charge_number*charge_number * lm * result_long;
   force_result_long /= (d_paral_e*d_paral_e);        
           
   gsl_integration_workspace_free(w);
@@ -276,8 +284,8 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
         
   //The factor of pi/2 comes from the difference between the constants
   // used in Parkhomchuk with the constants used in the Meshkov representation
-  force_result_trans = f_const * charge_number*charge_number * density_e * result_trans * v_tr;
-  force_result_long = f_const * charge_number*charge_number * density_e * result_long * v_long;
+  force_result_trans = f_const_ * charge_number*charge_number * density_e * result_trans * v_tr;
+  force_result_long = f_const_ * charge_number*charge_number * density_e * result_long * v_long;
 }
 
 
@@ -307,8 +315,8 @@ void Force_Budker::force(double v_tr, double v_long, double d_perp_e, double d_p
     double phi = sqrt(2/k_pi) * (erf(arg/sqrt(2)) - arg *exp((-arg*arg)/2));
     double result = phi * pow(v_mag,-3);
     
-    force_result_trans = f_const * charge_number*charge_number * lc * density_e * result * v_tr;
-    force_result_long = f_const * charge_number*charge_number * lc * density_e * result * v_long;
+    force_result_trans = f_const_ * charge_number*charge_number * lc * density_e * result * v_tr;
+    force_result_long = f_const_ * charge_number*charge_number * lc * density_e * result * v_long;
     
 }
 
@@ -323,7 +331,7 @@ double Force_Erlangen::fast_trans(double *k, size_t dim, void *params){
     double alpha = k[0];
     double beta = k[1];
     double phi = k[2];
-    
+   
     struct int_info *p = (struct int_info *)params;    
     
     double y = p->V_long - alpha;
@@ -350,7 +358,9 @@ double Force_Erlangen::fast_long(double *k, size_t dim, void *params){
     double beta = k[1];
     double phi = k[2];
     
-    struct int_info *p = (struct int_info *)params;    
+    struct int_info *p = (struct int_info *)params;  
+    
+//    std::cout<<alpha<<" "<<beta<<" "<<phi<<" "<<p->V_long<<" "<<p->V_trans<<" "<<p->d_perp_e<<" "<<p->d_paral_e<<std::endl;
     
     double y = p->V_long - alpha;
     double z = p->V_trans - beta*cos(phi);
@@ -378,10 +388,10 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
         double rho_max_3 = sqrt(v_mag*v_mag + delta_e*delta_e)*time_cooler;
         if(rho_max < rho_max_2) rho_max = rho_max_2;
         if(rho_max > rho_max_3) rho_max = rho_max_3;
+
+        double result_trans,result_long, error_trans,error_long;
         
-        if(fast){
-            
-            std::cout<<"Erlangen!"<<std::endl;
+        if(fast_){
             
             int_info params;
             params.V_trans = v_tr; //Ion velocity components
@@ -389,19 +399,15 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
             params.d_paral_e = d_paral_e; //The electron bunch width RMS
             params.d_perp_e = d_perp_e;
             
-            double result_trans,result_long, error_trans,error_long;
-
             //Lower limits to the variables 
-            double cutoff = 1e8;
-            double xl[3] = {0.,-cutoff,0.};
+            double xl[3] = {0.,-cutoff_,0.};
             //Upper limits to the variables
-            double xu[3] = {cutoff,cutoff,2*k_pi};
-            
+            double xu[3] = {cutoff_,cutoff_,2*k_pi};
 
             const gsl_rng_type *T;
             gsl_rng *r;
             
-            gsl_monte_function G = {&fast_trans, 3, 0}; //what are these?
+            gsl_monte_function G = {&fast_trans, 3, &params}; 
             
             size_t calls = 5e5;
             
@@ -419,19 +425,19 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
               {
                 gsl_monte_vegas_integrate (&G, xl, xu, 3, calls/5, r, s,
                                            &result_trans, &error_trans);
-                printf ("result = % .6f sigma = % .6f "
-                        "chisq/dof = %.1f\n", result_trans, error_trans, gsl_monte_vegas_chisq (s));
+//                printf ("result = % .6f sigma = % .6f "
+//                        "chisq/dof = %.1f\n", result_trans, error_trans, gsl_monte_vegas_chisq (s));
               }
             while (fabs (gsl_monte_vegas_chisq (s) - 1.0) > 0.5);
 
-            G = {&fast_long, 3, 0}; //what are these?
+            G = {&fast_long, 3, &params}; //what are these?
             
             do
               {
                 gsl_monte_vegas_integrate (&G, xl, xu, 3, calls/5, r, s,
                                            &result_long, &error_long);
-                printf ("result = % .6f sigma = % .6f "
-                        "chisq/dof = %.1f\n", result_long, error_long, gsl_monte_vegas_chisq (s));
+//                printf ("result = % .6f sigma = % .6f "
+//                        "chisq/dof = %.1f\n", result_long, error_long, gsl_monte_vegas_chisq (s));
               }
             while (fabs (gsl_monte_vegas_chisq (s) - 1.0) > 0.5);
             
@@ -440,14 +446,18 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
             
         }
         
-        if(stretched){}
+//        std::cout<<result_trans<<" "<<result_long<<std::endl;
         
-        if(tight){}
+        if(stretched_){}
+        
+        if(tight_){}
         
     }
     
-    force_result_trans = f_const * charge_number*charge_number * density_e * result_trans * v_tr;
-    force_result_long = f_const * charge_number*charge_number * density_e * result_long * v_long;
+    force_result_trans = f_const_ * charge_number*charge_number * density_e * result_trans;
+    force_result_trans /= d_perp_e*d_perp_e * d_paral_e;
+    force_result_long = f_const_ * charge_number*charge_number * density_e * result_long;
+    force_result_long /= d_perp_e*d_perp_e * d_paral_e;
     
 }
 
