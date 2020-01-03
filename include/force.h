@@ -58,11 +58,11 @@ class ForceParas{
 class Force_Parkhomchuk : public ForceParas{
     private:
     //Force-dependent constants
-        //const double f_const = -4 * k_me_kg * pow(k_re*k_c*k_c,2); //for Parkhomchuk
+        //double f_const = -4 * k_me_kg * pow(k_re*k_c*k_c,2); //for Parkhomchuk
         //const char* test_filename = "Parkhomchuk.txt";
     public:
         Force_Parkhomchuk():ForceParas(ForceFormula::PARKHOMCHUK,-4 * k_me_kg * pow(k_re*k_c*k_c,2),"Parkhomchuk.txt"){};
-          
+
         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
                             double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
 };
@@ -126,8 +126,8 @@ class Force_Erlangen : public ForceParas{
         //const double f_const = -sqrt(2/k_pi) * pow(k_e,4)/k_me;
         //const char* test_filename = "Erlangen.txt";
         bool fast_ = true;
-        bool stretched_ = false;
-        bool tight_ = false;
+        bool stretched_ = true;
+        bool tight_ = true;
         double cutoff_ = 1e8; //integral cutoff for fast
     
         struct int_info {
@@ -135,10 +135,18 @@ class Force_Erlangen : public ForceParas{
             double V_long;
             double d_perp_e;
             double d_paral_e;
+            double rho_max;
         };
     
+        //Definitions of integrals that need to be evaluated through Monte Carlo:
         static double fast_trans(double *k, size_t dim, void *params);
         static double fast_long(double *k, size_t dim, void *params);
+        static double tight_trans(double *k, size_t dim, void *params);
+        static double tight_long(double *k, size_t dim, void *params);
+        static double stretched_trans(double *k, size_t dim, void *params);
+        static double stretched_long(double *k, size_t dim, void *params);
+        void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,double *xl,double *xu,size_t dim,
+                          double &result,double &error);
     
     public:
         Force_Erlangen():ForceParas(ForceFormula::ERLANGEN,-sqrt(2/k_pi) * pow(k_e,4)/k_me,"Erlangen.txt"){};
