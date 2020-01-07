@@ -99,7 +99,7 @@ int both(){
     unsigned int n_sample = 10000;
     ecool_paras = new EcoolRateParas(n_sample);
     //define friction force formula
-    force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+    force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
     double rate_x, rate_y, rate_s;
     ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -182,9 +182,9 @@ int ecool(ForceFormula ff, double *check_rates){
     unsigned int n_long = 100;
     EcoolRateParas ecool_rate_paras(n_tr, n_long);
 
-    ForceParas force_paras(ff);
+    ForceParas *force_paras = ChooseForce(ff);
     double rate_x, rate_y, rate_s;
-    ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+    ecooling_rate(ecool_rate_paras, *force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
 
@@ -218,8 +218,8 @@ int ecool(ForceFormula ff, double *check_rates){
     EcoolRateParas ecool_rate_paras2(n_tr, n_long);
     //ForceParas force_paras2(ForceFormula::DERBENEVSKRINSKY);
     
-    ForceParas force_paras2(ForceFormula::PARKHOMCHUK);
-    CalculateForce(ecool_rate_paras2, force_paras2, c_beam2, cooler, e_beam2, ring);
+    ForceParas *force_paras2 = ChooseForce(ff);
+    CalculateForce(ecool_rate_paras2, *force_paras2, c_beam2, cooler, e_beam2, ring);
     
     JSPEC_TEST_END();
     
@@ -444,7 +444,7 @@ int dynamicecool(){
     unsigned int n_sample = 40000;
     ecool_paras = new EcoolRateParas(n_sample);
     //define friction force formula
-    force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+    force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
     //define dynamic simulation
     dynamic_paras = new DynamicParas(60, 120, false, true);
     dynamic_paras->set_model(DynamicModel::MODEL_BEAM);
@@ -550,7 +550,7 @@ int dynamicboth(){
     unsigned int n_sample = 100000;
     ecool_paras = new EcoolRateParas(n_sample);
 //            //define friction force formula
-    force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+    force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
     double rate_x, rate_y, rate_s;
     ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -624,15 +624,16 @@ int main(int, char**)
     check_rates[2] = -0.0122515;   
     ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
 
+
 //    check_rates[0] = -1.72854;
 //    check_rates[1] = -1.72863;
 //    check_rates[2] = -2.61073;    
 //    ecool(ForceFormula::MESHKOV,check_rates);
 
-    dynamicibsbunched();
-    dynamicibs();
-    dynamicecool();
-    ibs();    
+//    dynamicibsbunched();
+//    dynamicibs();
+//    dynamicecool();
+//    ibs();    
     //These both take a long time
     //dynamicboth();
    // both();

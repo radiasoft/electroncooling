@@ -82,8 +82,8 @@ void Force_Parkhomchuk::force(double v_tr, double v_long, double d_perp_e, doubl
         double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
         double rho_min = rho_min_const/dlt;
         dlt = sqrt(dlt);
-        double wp_const = 4*k_pi*k_c*k_c*k_e*k_ke/(k_me*1e6);
-        double wp = sqrt(wp_const*density_e);
+        double wp_const = 4 * k_pi * k_c*k_c * k_e * k_ke / (k_me*1e6);
+        double wp = sqrt(wp_const * density_e);
 
         double rho_max = dlt/wp;
         double rho_max_2 = pow(3*charge_number/density_e, 1.0/3);
@@ -137,6 +137,28 @@ double Force_DS::long_integrand(double alpha, void *params){
    return integrand; 
 }
 
+void Force_DS::EvalIntegral(double (*func)(double, void*), int_info &params,double &result,double &error){
+    unsigned int space_size = 100;
+    gsl_set_error_handler_off();
+    gsl_function F;
+
+    F.params = &params;
+    F.function = func;
+
+    gsl_integration_workspace *w = gsl_integration_workspace_alloc(space_size);
+    double result_trans,result_long, error_trans,error_long;
+
+    //In D&S/Pestrikov, all integrals have the same limits, so we can hard-conde it here
+    int status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-6,space_size,1,w,&result,&error);
+  
+    if(status == GSL_EDIVERGE){
+        status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result,&error);
+    }
+
+    gsl_integration_workspace_free(w);
+  
+}
+
 //This function is used for calculating the forces on single particles or arrays of particles
 void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
                      int charge_number,double density_e,double time_cooler,double magnetic_field, 
@@ -171,27 +193,10 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
   params.V_long  = v_long;
   params.width = d_paral_e; //The electron bunch width RMS
       
-  unsigned int space_size = 100;
-  gsl_set_error_handler_off();
-  gsl_integration_workspace *w = gsl_integration_workspace_alloc(space_size);
   double result_trans,result_long, error_trans,error_long;
-  gsl_function F;
 
-  F.params = &params;
-  F.function = &Force_DS::trans_integrand;
-
-  int status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-6,space_size,1,w,&result_trans,&error_trans);
-  
-  if(status == GSL_EDIVERGE){
-    status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result_trans,&error_trans);
-  }
-       
-  F.function = &Force_DS::long_integrand;
-
-  status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-6,space_size,1,w,&result_long,&error_long);
-  if(status == GSL_EDIVERGE){
-    status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result_long,&error_long);
-  }
+  EvalIntegral(&Force_DS::trans_integrand,params,result_trans,error_trans);
+  EvalIntegral(&Force_DS::long_integrand,params,result_long,error_long);
      
   force_result_tr = f_const_ * density_e * charge_number*charge_number * lm * result_trans;
   force_result_tr /= (d_paral_e*d_paral_e); 
@@ -199,8 +204,6 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
   force_result_long = f_const_ * density_e * charge_number*charge_number * lm * result_long;
   force_result_long /= (d_paral_e*d_paral_e);        
           
-  gsl_integration_workspace_free(w);
-   
 }
 
 void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
@@ -484,17 +487,18 @@ void Force_Erlangen::EvalIntegral(double (*func)(double*, size_t, void*), int_in
     G.dim = dim;
     G.params = &params; 
             
-    size_t calls = 5e5;
     gsl_rng_env_setup();
     T = gsl_rng_default;
     r = gsl_rng_alloc(T);
             
     gsl_monte_vegas_state *s = gsl_monte_vegas_alloc(dim);
-    gsl_monte_vegas_integrate(&G,xl,xu,dim,1e5,r,s, &result,&error);
+    //Some burn-in for importance-weighting
+    gsl_monte_vegas_integrate(&G,xl,xu,dim,calls_/5,r,s, &result,&error);
 
+    //Sample until the result is 'good enough' and no more
     do
     {
-        gsl_monte_vegas_integrate (&G, xl, xu, dim, calls/5, r, s,
+        gsl_monte_vegas_integrate (&G, xl, xu, dim, calls_/5, r, s,
                                    &result, &error);
 //               printf ("result = % .6f sigma = % .6f "
 //                        "chisq/dof = %.1f\n", result, error, gsl_monte_vegas_chisq (s));

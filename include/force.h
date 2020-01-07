@@ -29,7 +29,7 @@ class ForceParas{
     double *ptr_d_perp_e() const {return ptr_d_perp_e_;}
     double *ptr_d_paral_e() const {return ptr_d_paral_e_;}
     double time_cooler() const {return time_cooler_;}
-    bool do_test() const {return do_test_;}
+    bool do_test() const {return do_test_;} 
     int set_park_temperature_eff(double x){park_temperature_eff_ = x; return 0;}
     int set_magnetic_field(double x){magnetic_field_=x; return 0;}
     int set_d_perp_e(double x){d_perp_e_ = x; return 0;}
@@ -40,6 +40,7 @@ class ForceParas{
     int set_ptr_d_paral_e(std::vector<double>& x){ptr_d_paral_e_ = &*x.begin(); return 0;}
     int set_time_cooler(double x){time_cooler_ = x; return 0;}
     int set_do_test(bool b){do_test_ = b; return 0;}
+    int set_filename(const char* f){test_filename_=f; return 0;}
     ForceParas(ForceFormula formula):formula_(formula){};
     ForceParas(ForceFormula formula,double f_const,const char* test_filename):formula_(formula),
                     f_const_(f_const),test_filename_(test_filename){};
@@ -84,6 +85,8 @@ class Force_DS : public ForceParas{
         //These must be static so they can be passed to GSL integration
         static double trans_integrand(double alpha,void *params);
         static double long_integrand(double alpha, void *params);
+        void EvalIntegral(double (*func)(double, void*), int_info &params,
+                          double &result, double &error);
     
     public:
         Force_DS():ForceParas(ForceFormula::DERBENEVSKRINSKY,-2 * (k_pi/(2*sqrt(2*k_pi))) * k_me_kg * pow(k_re*k_c*k_c,2),"DerbenevSkrinsky.txt"){};
@@ -102,10 +105,12 @@ class Force_Meshkov : public ForceParas{
         //const char* test_filename = "Meshkov.txt";
         double k_ = 2;
     public:
-        int set_k(double k){k_ = k; return 0;}
         Force_Meshkov():ForceParas(ForceFormula::MESHKOV,-4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2),"Meshkov.txt"){};
-        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
-                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
+    
+        int set_k(double k){k_ = k; return 0;}
+        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
+                           int charge_number, double density_e,double time_cooler,double magnetic_field, 
+                           double &force_result_trans, double &force_result_long);
 };
 
 class Force_Budker : public ForceParas{
@@ -117,6 +122,7 @@ class Force_Budker : public ForceParas{
         //const char* test_filename = "Budker.txt";
     public:
         Force_Budker():ForceParas(ForceFormula::BUDKER,-4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2),"Budker.txt"){};
+    
         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
                             double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
 };
@@ -126,9 +132,10 @@ class Force_Erlangen : public ForceParas{
         //const double f_const = -sqrt(2/k_pi) * pow(k_e,4)/k_me;
         //const char* test_filename = "Erlangen.txt";
         bool fast_ = true;
-        bool stretched_ = true;
-        bool tight_ = true;
-        double cutoff_ = 1e8; //integral cutoff for fast
+        bool stretched_ = false;
+        bool tight_ = false;
+        double cutoff_ = 1e8; //cutoff value for integrals
+        size_t calls_ = 5e5; //The number of MC samples in the integrals
     
         struct int_info {
             double V_trans;
@@ -145,19 +152,21 @@ class Force_Erlangen : public ForceParas{
         static double tight_long(double *k, size_t dim, void *params);
         static double stretched_trans(double *k, size_t dim, void *params);
         static double stretched_long(double *k, size_t dim, void *params);
-        void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,double *xl,double *xu,size_t dim,
-                          double &result,double &error);
+        void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
+                          double *xl, double *xu, size_t dim, double &result, double &error);
     
     public:
         Force_Erlangen():ForceParas(ForceFormula::ERLANGEN,-sqrt(2/k_pi) * pow(k_e,4)/k_me,"Erlangen.txt"){};
-        int set_cutoff(double k){cutoff_ = k; return 0;}
+
         int set_fast(bool k){fast_ = k; return 0;}
         int set_tight(bool k){tight_ = k; return 0;}
         int set_stretched(bool k){stretched_ = k; return 0;}
-        
+        int set_cutoff(double c){cutoff_ = c; return 0;}
+        int set_calls(size_t c){calls_ = c; return 0;}    
     
-         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
-                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
+         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, 
+                            int charge_number, double density_e, double time_cooler,
+                            double magnetic_field, double &force_result_trans, double &force_result_long);
 };
 
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_z, double *density_e,

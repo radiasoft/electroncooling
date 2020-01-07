@@ -25,6 +25,14 @@ extern ForceParas * force_paras;
 // Then, perform a regression test on those results compared to a
 // 'golden' dataset stored in the data subdirectory.
 
+
+//The Erlangen force model is a special case, we'll need to 
+// turn on/off some switches to test all configurations
+bool Erlangen_fast      = false;
+bool Erlangen_tight     = false;
+bool Erlangen_stretched = false;
+
+
 void SetupModel(ForceFormula ff)
 {
   //define coasting gold ion beam
@@ -81,9 +89,36 @@ void SetupModel(ForceFormula ff)
 
   double rate_x, rate_y, rate_s;
             
-  ForceParas force_paras(ff);
-  force_paras.set_do_test(true);
-  ecooling_rate(ecool_rate_paras, force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+  ForceParas *force_paras = ChooseForce(ff);
+
+  if(force_paras->formula() == ForceFormula::ERLANGEN){
+      std::string suffix;
+      //Start with a clean slate
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
+                              
+      if(Erlangen_fast){
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
+          suffix += "F";
+      }
+      if(Erlangen_tight) {
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(true);
+          suffix += "T";
+      }
+      if(Erlangen_stretched){
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(true);
+          suffix += "S";
+      }
+      force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
+      
+      //Speed this up
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(5000);
+      
+  }
+    
+  force_paras->set_do_test(true);
+  ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
   std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
     
   return;
@@ -200,16 +235,6 @@ double CompareOutput(string filename_golden,string filename_test){
     double cov00,cov01,cov11;
     double c0,c1,sumsq;
     
-    //Dump this to file for analysis in PYTHON
- /*
-    std::ofstream outfile;
-    outfile.open("DS_intermediate_test.txt");
-    outfile<<"V_long"<<", "<<"Delta"<<", "<<"F_long_g"<<std::endl;
-    for(int i = 0; i<n; i++){
-        outfile<<x[i]<<", "<<y[i]<<","<<y_vec_g[i]<<"\n";
-    }
-    outfile.close();
-*/ 
     //Strides refer to the separation within
     // the array of consecutive points
     int xstride = 1;
@@ -244,6 +269,31 @@ void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
+  //Lets see if this works:
+  Erlangen_fast = true;  
+  std::cout<<"F"<<std::endl;
+//  SetupModel(ForceFormula::ERLANGEN); //F
+  Erlangen_tight = true;  
+  std::cout<<"FT"<<std::endl;
+//  SetupModel(ForceFormula::ERLANGEN); //FT
+  Erlangen_stretched = true;  
+  std::cout<<"FTS"<<std::endl;
+  SetupModel(ForceFormula::ERLANGEN); //FTS
+  Erlangen_tight = false;  
+  std::cout<<"FS"<<std::endl;
+  SetupModel(ForceFormula::ERLANGEN); //FS
+  Erlangen_fast = false;  
+  std::cout<<"S"<<std::endl;
+  SetupModel(ForceFormula::ERLANGEN); //S
+  Erlangen_tight = true;
+  std::cout<<"TS"<<std::endl;
+  SetupModel(ForceFormula::ERLANGEN); //TS
+  Erlangen_stretched = false;
+  std::cout<<"T"<<std::endl;
+  SetupModel(ForceFormula::ERLANGEN); //T
+    
+    
+    /*
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression
@@ -277,7 +327,9 @@ void testForce(){
   test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Budker.txt");
   slope = CompareOutput(data_path,test_path);
   //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
-  
+
+  //SetupModel(ForceFormula::ERLANGEN);    
+    */
     
   JSPEC_TEST_END();
 
