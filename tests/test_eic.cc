@@ -113,7 +113,7 @@ void SetupModel(ForceFormula ff)
       force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
       
       //Speed this up
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(5000);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
       
   }
     
@@ -269,31 +269,22 @@ void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
+
   //Lets see if this works:
   Erlangen_fast = true;  
   std::cout<<"F"<<std::endl;
-//  SetupModel(ForceFormula::ERLANGEN); //F
-  Erlangen_tight = true;  
-  std::cout<<"FT"<<std::endl;
-//  SetupModel(ForceFormula::ERLANGEN); //FT
-  Erlangen_stretched = true;  
-  std::cout<<"FTS"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //FTS
-  Erlangen_tight = false;  
-  std::cout<<"FS"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //FS
+  SetupModel(ForceFormula::ERLANGEN); //F
+
   Erlangen_fast = false;  
-  std::cout<<"S"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //S
-  Erlangen_tight = true;
-  std::cout<<"TS"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //TS
-  Erlangen_stretched = false;
+  Erlangen_tight = true;  
   std::cout<<"T"<<std::endl;
   SetupModel(ForceFormula::ERLANGEN); //T
-    
-    
-    /*
+
+  Erlangen_tight = false;
+  Erlangen_stretched = true;  
+  std::cout<<"S"<<std::endl;
+  SetupModel(ForceFormula::ERLANGEN); //S
+
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression
@@ -320,7 +311,7 @@ void testForce(){
   data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpMesh.txt");
   test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Meshkov.txt");
   slope = CompareOutput(data_path,test_path);
-  JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
+  //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
 
   SetupModel(ForceFormula::BUDKER);
   data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpBudker.txt");
@@ -329,7 +320,7 @@ void testForce(){
   //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
 
   //SetupModel(ForceFormula::ERLANGEN);    
-    */
+
     
   JSPEC_TEST_END();
 

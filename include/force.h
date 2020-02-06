@@ -116,12 +116,11 @@ class Force_Meshkov : public ForceParas{
 class Force_Budker : public ForceParas{
     private:
     //Force-dependent constants
-        //The factor of pi/2 comes from the difference between the constants
+        //The factor of pi comes from the difference between the constants
         // used in Parkhomchuk with the constants used in the Meshkov representation
-        //const double f_const = -4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2); 
-        //const char* test_filename = "Budker.txt";
+  
     public:
-        Force_Budker():ForceParas(ForceFormula::BUDKER,-4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2),"Budker.txt"){};
+          Force_Budker():ForceParas(ForceFormula::BUDKER,-4 * k_pi * k_me_kg * pow(k_re*k_c*k_c,2),"Budker.txt"){};
     
         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
                             double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
@@ -129,13 +128,12 @@ class Force_Budker : public ForceParas{
 
 class Force_Erlangen : public ForceParas{
     private:
-        //const double f_const = -sqrt(2/k_pi) * pow(k_e,4)/k_me;
         //const char* test_filename = "Erlangen.txt";
         bool fast_ = true;
         bool stretched_ = false;
         bool tight_ = false;
-        double cutoff_ = 1e8; //cutoff value for integrals
-        size_t calls_ = 5e5; //The number of MC samples in the integrals
+        double cutoff_ = 1e5; //cutoff value for integrals
+        size_t calls_ = 5e5; //The number of MC samples when calculating integrals
     
         struct int_info {
             double V_trans;
@@ -143,6 +141,8 @@ class Force_Erlangen : public ForceParas{
             double d_perp_e;
             double d_paral_e;
             double rho_max;
+            double B_field;
+            int Z;
         };
     
         //Definitions of integrals that need to be evaluated through Monte Carlo:
@@ -156,7 +156,10 @@ class Force_Erlangen : public ForceParas{
                           double *xl, double *xu, size_t dim, double &result, double &error);
     
     public:
-        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN,-sqrt(2/k_pi) * pow(k_e,4)/k_me,"Erlangen.txt"){};
+        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN, -k_me_kg * pow(k_re*k_c*k_c,2),"Erlangen.txt"){};
+
+        //The Erlangen paper uses notation to hide some factors of k_ke. We can re-define this in terms of k_re
+//        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN, -k_me_kg * k_re*k_re,"Erlangen.txt"){};
 
         int set_fast(bool k){fast_ = k; return 0;}
         int set_tight(bool k){tight_ = k; return 0;}
