@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <cmath>
 
 #include "beam.h"
 #include "constants.h"
@@ -12,7 +13,7 @@
 using std::string;
 
 extern DynamicParas *dynamic_paras;
-extern IBSParas *ibs_paras;
+extern IBSSolver *ibs_solver;
 extern EcoolRateParas *ecool_paras;
 extern ForceParas *force_paras;
 extern Luminosity *luminosity_paras;
@@ -51,7 +52,7 @@ std::vector<string> E_BEAM_ARGS = {"GAMMA", "TMP_TR", "TMP_L", "SHAPE", "RADIUS"
     "SIGMA_Z", "LENGTH", "E_NUMBER", "RH", "RV", "R_INNER", "R_OUTTER", "PARTICLE_FILE", "TOTAL_PARTICLE_NUMBER",
     "BOX_PARTICLE_NUMBER", "LINE_SKIP", "VEL_POS_CORR","BINARY_FILE","BUFFER_SIZE"};
 std::vector<string> ECOOL_ARGS = {"SAMPLE_NUMBER", "FORCE_FORMULA"};
-std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","BUDKER"};
+std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","BUDKER","ERLANGEN"};
 std::vector<string> SIMULATION_ARGS = {"TIME", "STEP_NUMBER", "SAMPLE_NUMBER", "IBS", "E_COOL", "OUTPUT_INTERVAL",
     "SAVE_PARTICLE_INTERVAL", "OUTPUT_FILE", "MODEL", "REF_BET_X", "REF_BET_Y", "REF_ALF_X", "REF_ALF_Y",
     "REF_DISP_X", "REF_DISP_Y", "REF_DISP_DX", "REF_DISP_DY", "FIXED_BUNCH_LENGTH", "RESET_TIME", "OVERWRITE",
@@ -524,56 +525,45 @@ void create_cooler(Set_ptrs &ptrs) {
     std::cout<<"Cooler created!"<<std::endl;
 }
 
-void calculate_ibs(Set_ptrs &ptrs) {
-    assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATE IBS RATE!");
+void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
+    assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATING IBS RATE!");
     assert(ptrs.ibs_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR IBS RATE CALCULATION!");
-    int nu = ptrs.ibs_ptr->nu;
-    int nv = ptrs.ibs_ptr->nv;
-    int nz = ptrs.ibs_ptr->nz;
-    double log_c = ptrs.ibs_ptr->log_c;
-    double k = ptrs.ibs_ptr->coupling;
+
+    const int nu = ptrs.ibs_ptr->nu;
+    const int nv = ptrs.ibs_ptr->nv;
+    const int nz = ptrs.ibs_ptr->nz;
+    const double log_c = ptrs.ibs_ptr->log_c;
+    const double k = ptrs.ibs_ptr->coupling;
     double rx, ry, rz;
     IBSModel model = ptrs.ibs_ptr->model;
     bool ibs_by_element = ptrs.ibs_ptr->ibs_by_element;
 
     if(model==IBSModel::MARTINI) {
-        if (log_c>0) {
-            assert(nu>0 && nv>0 && k<=1 && k>=0 && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
-            IBSParas ibs_paras(nu, nv, log_c);
-            if (k>0) ibs_paras.set_k(k);
-            if (ibs_by_element) ibs_paras.set_ibs_by_element(true);
-            else ibs_paras.set_ibs_by_element(false);
-            ibs_rate(*ptrs.ring->lattice_, *ptrs.ion_beam, ibs_paras, rx, ry, rz);
-        }
-        else {
-            assert(nu>0 && nv>0 && nz>0 &&  k<=1 && k>=0 && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
-            IBSParas ibs_paras(nu, nv, nz);
-            if (k>0) ibs_paras.set_k(k);
-            if (ibs_by_element) ibs_paras.set_ibs_by_element(true);
-            else ibs_paras.set_ibs_by_element(false);
-            ibs_rate(*ptrs.ring->lattice_, *ptrs.ion_beam, ibs_paras, rx, ry, rz);
-        }
+        assert(nu>0 && nv>0 && k<=1 && k>=0 && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
+        delete ibs_solver;
+        ibs_solver = new IBSSolver_Martini(nu, nv, nz, log_c, k);
+        ibs_solver->set_ibs_by_element(ibs_by_element);
+    } else if (model == IBSModel::BM) {
+        assert(log_c>0 && "WRONG VALUE FOR COULOMB LOGARITHM IN IBS CALCULATION WITH BM MODEL!");
+        delete ibs_solver;
+        ibs_solver = new IBSSolver_BM(log_c, k);
+        ibs_solver->set_ibs_by_element(ibs_by_element);
     }
-    else if(model==IBSModel::BM) {
-        IBSParas ibs_paras(model);
-        assert(log_c>0 && "WRONG VALUE FOR COULOMB LOGRITHEM IN IBS CALCULATION WITH BM MODEL!");
-        ibs_paras.set_log_c(log_c);
-        if (k>0) ibs_paras.set_k(k);
-        if (ibs_by_element) ibs_paras.set_ibs_by_element(true);
-        else ibs_paras.set_ibs_by_element(false);
-        ibs_rate(*ptrs.ring->lattice_, *ptrs.ion_beam, ibs_paras, rx, ry, rz);
-    }
+    if(calc) {
+        ibs_solver->rate(*ptrs.ring->lattice_, *ptrs.ion_beam, rx, ry, rz);
 
-    ptrs.ibs_rate.at(0) = rx;
-    ptrs.ibs_rate.at(1) = ry;
-    ptrs.ibs_rate.at(2) = rz;
-    vl_rx_ibs = rx;
-    vl_ry_ibs = ry;
-    vl_rs_ibs = rz;
-    std::cout<<std::scientific;
-    std::cout << std::setprecision(3);
-    std::cout<<"IBS rate (1/s): "<<rx<<"  "<<ry<<"  "<<rz<<std::endl;
+        ptrs.ibs_rate.at(0) = rx;
+        ptrs.ibs_rate.at(1) = ry;
+        ptrs.ibs_rate.at(2) = rz;
+        vl_rx_ibs = rx;
+        vl_ry_ibs = ry;
+        vl_rs_ibs = rz;
+        std::cout<<std::scientific;
+        std::cout << std::setprecision(3);
+        std::cout<<"IBS rate (1/s): "<<rx<<"  "<<ry<<"  "<<rz<<std::endl;
+    }
 }
+
 
 void calculate_ecool(Set_ptrs &ptrs) {
     assert(ptrs.cooler.get()!=nullptr && "MUST CREATE THE COOLER BEFORE CALCULATE ELECTRON COOLING RATE!");
@@ -787,36 +777,13 @@ void run_simulation(Set_ptrs &ptrs) {
             dynamic_paras->set_n_sample(n_sample);
         }
         ecool_paras = new EcoolRateParas(n_sample);
-        
         force_paras = ChooseForce(ptrs.ecool_ptr->force);
     }
 
     if(ibs) {
         assert(ptrs.ibs_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR IBS RATE CALCULATION!");
-        int nu = ptrs.ibs_ptr->nu;
-        int nv = ptrs.ibs_ptr->nv;
-        int nz = ptrs.ibs_ptr->nz;
-        double log_c = ptrs.ibs_ptr->log_c;
-        double k = ptrs.ibs_ptr->coupling;
-        double rx, ry, rz;
-        IBSModel model = ptrs.ibs_ptr->model;
 
-        if(model==IBSModel::MARTINI){
-            if (log_c>0) {
-                assert(nu>0 && nv>0 && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
-                ibs_paras = new IBSParas(nu, nv, log_c);
-            }
-            else {
-                assert(nu>0 && nv>0 && nz>0 && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
-                ibs_paras = new IBSParas(nu, nv, nz);
-                ibs_paras->set_log_c(log_c);
-            }
-        }
-        else if(model==IBSModel::BM) {
-            ibs_paras = new IBSParas(model);
-        }
-        if (k>0) ibs_paras->set_k(k);
-        ibs_paras->set_ibs_by_element(false);
+        calculate_ibs(ptrs, false);
     }
 
     if (ibs && !ecool && dynamic_paras->model()==DynamicModel::PARTICLE) {
@@ -1050,6 +1017,7 @@ void set_ibs(string &str, Set_ibs *ibs_args) {
     var = trim_tab(var);
     val = trim_blank(val);
     val = trim_tab(val);
+
     assert(std::find(IBS_ARGS.begin(),IBS_ARGS.end(),var)!=IBS_ARGS.end() && "WRONG COMMANDS IN SECTION_IBS!");
     if (var== "MODEL") {
         if (val == "MARTINI") {
@@ -1403,11 +1371,11 @@ void set_ecool(string &str, Set_ecool *ecool_args){
     assert(std::find(ECOOL_ARGS.begin(),ECOOL_ARGS.end(),var)!=ECOOL_ARGS.end() && "WRONG COMMANDS IN SECTION_ECOOL!");
 
     if (var == "FORCE_FORMULA") {
-//        ecool_args->force = val;
         if (val=="PARKHOMCHUK") ecool_args->force = ForceFormula::PARKHOMCHUK;
         else if (val=="DERBENEVSKRINSKY") ecool_args->force = ForceFormula::DERBENEVSKRINSKY;
         else if (val=="MESHKOV") ecool_args->force = ForceFormula::MESHKOV;
         else if (val=="BUDKER") ecool_args->force = ForceFormula::BUDKER;
+        else if (val=="ERLANGEN") ecool_args->force = ForceFormula::ERLANGEN;
 
         else assert(false&&"Friction force formula NOT exists!");
     }

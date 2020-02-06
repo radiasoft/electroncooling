@@ -36,24 +36,26 @@ public:
     int set_sigma_s(double x){sigma_s_ = x; return 0;}
     int set_center(double cx, double cy, double cz){center_[0] = cx; center_[1] = cy; center_[2] = cz; return 0;}
     int set_center(int i, double x);
+
     int set_bunched(bool s){bunched_ = s; return 0;}
-    int charge_number(){return charge_number_;}
-    double mass(){return mass_;}
-    double kinetic_energy(){return kinetic_energy_;}
-    double beta(){return beta_;}
-    double gamma(){return gamma_;}
-    double emit_nx(){return emit_nx_;}
-    double emit_ny(){return emit_ny_;}
-    double emit_x(){return emit_x_;}
-    double emit_y(){return emit_y_;}
-    double dp_p(){return dp_p_;}
-    double energy_spread(){return energy_spread_;}
-    double sigma_s(){return sigma_s_;}
-    double r(){return r_;}
-    double particle_number(){return particle_number_;}
-    double mass_number(){return mass_number_;}
-    double mass_J(){return mass_*1e6*k_e;}
-    bool bunched(){return bunched_;}
+    int charge_number() const {return charge_number_;}
+    double mass() const {return mass_;}
+    double kinetic_energy() const {return kinetic_energy_;}
+    double beta() const {return beta_;}
+    double gamma() const {return gamma_;}
+    double emit_nx() const {return emit_nx_;}
+    double emit_ny() const {return emit_ny_;}
+    double emit_x() const {return emit_x_;}
+    double emit_y() const {return emit_y_;}
+    double dp_p() const {return dp_p_;}
+    double energy_spread() const {return energy_spread_;}
+    double sigma_s() const {return sigma_s_;}
+    double r() const {return r_;}
+    double particle_number() const {return particle_number_;}
+    double mass_number() const {return mass_number_;}
+    double mass_J() const {return mass_*1e6*k_e;}
+    bool bunched()const {return bunched_;}
+
     int center(double &cx, double &cy, double &cz){cx = center_[0]; cy = center_[1]; cz = center_[2]; return 0;}
     double center(int i){ if (i<3) return center_[i]; else perror("Error index for electron beam center!"); return 1.0;}
     Beam(int charge_number, double mass_number, double kinetic_energy, double emit_nx, double emit_ny, double dp_p,
@@ -138,7 +140,7 @@ class UniformHollowBunch: public EBeamShape {
     double length(){return length_;}
     bool bunched(){return true;}
     UniformHollowBunch(double current, double in_radius, double out_radius, double length, double neutralisation=2):current_(current),
-        in_radius_(in_radius), out_radius_(out_radius),length_(length), neutralisation_(neutralisation){};
+        in_radius_(in_radius), out_radius_(out_radius), neutralisation_(neutralisation), length_(length) {}
 };
 
 class GaussianBunch: public EBeamShape{
@@ -198,52 +200,6 @@ public:
     EllipticUniformBunch(double current, double rh, double rv, double length, double neutralisation=2):current_(current),
             rh_(rh),rv_(rv),length_(length),neutralisation_(neutralisation){};
 };
-//
-//class ParticleBunch: public EBeamShape {
-//    double n_electron_;
-//    std::string filename_;
-//    unsigned long int n_;
-//    double length_;
-//    bool v_x_corr_ = false;    //Velocity position correlation
-//    double neutralisation_;
-//    int line_skip_;
-//    vector<Box> tree_;
-//    vector<unsigned long int> list_e_;
-//    int s_;
-//    bool binary_;
-//    int buffer_;
-//public:
-//    std::vector<double> x, y, z, vx, vy, vz;  //Electron phase space coordinates
-//    std::vector<double> v_avg_z, v_rms_l, v_rms_t, tpr_l, tpr_t;  //Velocity and temperate w.r.t. ions.
-//    //Calculate the charge density for a given position (x,y,z) in Lab frame.
-//    int density(double *x, double *y, double *z, Beam &ebeam, double *ne, unsigned int n);
-//    int density(double *x, double *y, double *z, Beam &ebeam, double *ne, unsigned int n, double cx, double cy, double cz);
-//    Shape shape(){return Shape::PARTICLE_BUNCH;}
-//    double length(){return length_;}
-//    bool bunched(){return true;}
-//    bool corr(){return v_x_corr_;}
-//    bool set_corr(bool corr = true){v_x_corr_ = corr;}
-//    double neutralisation(){return neutralisation_;}
-//    reload(double n_electron, std::string filename, unsigned long int n, double length, int line_skip = 0,
-//           bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//    reload(double n_electron, std::string filename, unsigned long int n, int line_skip = 0,
-//           bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//    reload(double n_electron, std::string filename,  double length, int line_skip = 0,
-//           bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//    reload(double n_electron, std::string filename, int line_skip = 0,
-//           bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//
-//    ParticleBunch(double n_electron, std::string filename, unsigned long int n, double length, int line_skip = 0,
-//                  bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//    ParticleBunch(double n_electron, std::string filename, unsigned long int n, int line_skip = 0,
-//                  bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//
-//    ParticleBunch(double n_electron, std::string filename, double length, int line_skip = 0,
-//                  bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//    ParticleBunch(double n_electron, std::string filename, int line_skip = 0,
-//                  bool binary = false, int buffer = 1000, int s = 100, double neutralisation=2);
-//};
-
 
 class ParticleBunch: public EBeamShape {
     double n_electron_;
@@ -268,7 +224,7 @@ public:
     double length(){return length_;}
     bool bunched(){return true;}
     bool corr(){return v_x_corr_;}
-    bool set_corr(bool corr = true){v_x_corr_ = corr; return corr;}
+    void set_corr(bool corr = true){v_x_corr_ = corr;}
     void set_buffer(int n) {buffer_ = n;}
     void set_s(int s) {s_ = s;}
     void set_binary(bool b) {binary_ = b;}
