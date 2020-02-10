@@ -17,8 +17,8 @@ using std::string;
 extern EcoolRateParas * ecool_paras;
 extern ForceParas * force_paras;
 
-//Run a cooling rate calculation relevant to EIC and compare 
-// it to a stored result. 
+//Run a cooling rate calculation relevant to EIC and compare
+// it to a stored result.
 
 //To perform this test, run with a specific setup, selecting
 // a specific force function, and output results to a file.
@@ -26,7 +26,7 @@ extern ForceParas * force_paras;
 // 'golden' dataset stored in the data subdirectory.
 
 
-//The Erlangen force model is a special case, we'll need to 
+//The Erlangen force model is a special case, we'll need to
 // turn on/off some switches to test all configurations
 bool Erlangen_fast      = false;
 bool Erlangen_tight     = false;
@@ -52,14 +52,14 @@ void SetupModel(ForceFormula ff)
 
   //define the ring (not really used for friction force calculation)
   string filename = CMAKE_SOURCE_DIR + std::string("/data/Booster.tfs");
-  
+
   Lattice lattice(filename);
   Ring ring(lattice, ion_beam);
 
   //define the cooler
   double cooler_length = 1;
   double n_section = 1;
-  double magnetic_field = 5; 
+  double magnetic_field = 5;
   double beta_h = 10;
   double beta_v = 17;
   double dis_h = 0;
@@ -72,12 +72,12 @@ void SetupModel(ForceFormula ff)
   double sigma_s = 2e-2;
   double n_particle = 1e7;
   GaussianBunch gb(n_particle,sigma_x,sigma_y,sigma_s);
-            
+
   double gamma_e = ion_beam.gamma();
   double tmp_tr = 0.1; //0.05
   double tmp_long = 0.1;
   EBeam e_beam(gamma_e, tmp_tr, tmp_long, gb);
-    
+
   //This choice tells ecool_rate_paras to select
   // 4 transverse velocities spanning the whole space,
   // from which we can whittle down to the one we are
@@ -88,16 +88,17 @@ void SetupModel(ForceFormula ff)
   EcoolRateParas ecool_rate_paras(n_tr, n_long); //This sets IonSample::SingleParticle
 
   double rate_x, rate_y, rate_s;
-            
+
   ForceParas *force_paras = ChooseForce(ff);
 
+  /*
   if(force_paras->formula() == ForceFormula::ERLANGEN){
       std::string suffix;
       //Start with a clean slate
       dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
       dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
       dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
-                              
+
       if(Erlangen_fast){
           dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
           suffix += "F";
@@ -111,16 +112,16 @@ void SetupModel(ForceFormula ff)
           suffix += "S";
       }
       force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
-      
+
       //Speed this up
       dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
-      
+
   }
-    
+  */
   force_paras->set_do_test(true);
   ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
-  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
-    
+  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
+
   return;
 }
 
@@ -144,7 +145,7 @@ void SetupBoosterModel(ForceFormula ff)
 
   //define the ring (not really used for friction force calculation)
   string filename = CMAKE_SOURCE_DIR + std::string("/data/Booster.tfs");
-  
+
   Lattice lattice(filename);
   Ring ring(lattice, ion_beam);
 
@@ -159,7 +160,7 @@ void SetupBoosterModel(ForceFormula ff)
   Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v);
 
   //define electron beam
-  double current = 2; //Amps 
+  double current = 2; //Amps
   double radius = 0.004; //m
   double neutralisation = 2;
   UniformCylinder uc(current,radius,neutralisation);
@@ -168,7 +169,7 @@ void SetupBoosterModel(ForceFormula ff)
   double tmp_tr = 0.1;
   double tmp_long = 0.01;
   EBeam e_beam(gamma_e, tmp_tr, tmp_long, uc);
-    
+
   //This choice tells ecool_rate_paras to select
   // 4 transverse velocities spanning the whole space,
   // from which we can whittle down to the one we are
@@ -179,16 +180,16 @@ void SetupBoosterModel(ForceFormula ff)
   EcoolRateParas ecool_rate_paras(n_tr, n_long); //This sets IonSample::SingleParticle
 
   double rate_x, rate_y, rate_s;
-            
-  ForceParas *force_paras = ChooseForce(ff);
 
+  ForceParas *force_paras = ChooseForce(ff);
+  /*
   if(force_paras->formula() == ForceFormula::ERLANGEN){
       std::string suffix;
       //Start with a clean slate
       dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
       dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
       dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
-                              
+
       if(Erlangen_fast){
           dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
           suffix += "F";
@@ -202,23 +203,23 @@ void SetupBoosterModel(ForceFormula ff)
           suffix += "S";
       }
       force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
-      
+
       //Speed this up
       dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
-      
+
   }
-    
+  */
   force_paras->set_do_test(true);
   ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
-  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
-    
+  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
+
   return;
 }
 
 
 //A method to sort rows of a matrix based on a specific column.
 // This modifies the original matrix
-void sortrows(std::vector<std::vector<double>>& matrix, int col) {    
+void sortrows(std::vector<std::vector<double>>& matrix, int col) {
     std::sort(matrix.begin(),
               matrix.end(),
               [col](const std::vector<double>& lhs, const std::vector<double>& rhs) {
@@ -229,7 +230,7 @@ void sortrows(std::vector<std::vector<double>>& matrix, int col) {
 //A standard C++ CSV parser to handle the input files we'll need
 // for these comparisons
 vector< vector<double> > ReadCSV(string filename){
-    
+
     std::ifstream infile(filename);
 
     string line;
@@ -247,7 +248,7 @@ vector< vector<double> > ReadCSV(string filename){
                 row.push_back( stod(data) );
             }
             catch(const std::exception& e){
-             //Something other than the double we expect has snuck in.   
+             //Something other than the double we expect has snuck in.
              // Use the testing framework to point us to this line # for guidance
               JSPEC_ASSERT_THROW( 1 == 0);
             }
@@ -255,7 +256,7 @@ vector< vector<double> > ReadCSV(string filename){
         //The variables are F_const, v_trans, v_long, electron density, force_trans, force_long
         JSPEC_ASSERT_THROW( row.size() == 6 );
         matrix.push_back(row);
-    }    
+    }
 
     //now that we've ingested the whole file,
     // make cuts to get the range we want to test.
@@ -270,15 +271,15 @@ vector< vector<double> > ReadCSV(string filename){
             }
         }
     }
-    
+
     //Now we need to sort by v_long and return it to the
     // comparison function
     sortrows(out_matrix,2);
-    
+
     return out_matrix;
 }
 
-//Parse the file generated in SetupModel and compare it to the 
+//Parse the file generated in SetupModel and compare it to the
 // 'golden' dataset that is stored in the data directory
 double CompareOutput(string filename_golden,string filename_test){
 
@@ -286,23 +287,23 @@ double CompareOutput(string filename_golden,string filename_test){
     vector< vector<double> > test = ReadCSV(filename_test);
 
     //Calculate the difference between these trends, so there's just
-    // one trend to fit    
+    // one trend to fit
     vector<double> x_vec;
     vector<double> y_vec;
     vector<double> y_vec_g;
     int n = 0;
 
     for(int i = 0; i<golden.size(); i++){
-        
+
         double v_long_g = golden[i][2];
         double f_long_g = golden[i][5];
-     
+
         //Find the matching point for the test dataset
         // & add it to the fit vector. Our data is already
         // sorted by v_long.
         double min = DBL_MAX; //The closest point
         int min_index = 0;
-        
+
         for(int j = 0; j<test.size();j++){
             double v_long_t = test[j][2];
             //can't expect the sampled velocities to be exactly
@@ -319,22 +320,22 @@ double CompareOutput(string filename_golden,string filename_test){
         x_vec.push_back(test[min_index][2]);
         y_vec.push_back(f_long_t - f_long_g);
         y_vec_g.push_back(f_long_g);
-        n++;               
+        n++;
     }
 
     //Use the GSL library we've already introduced as a depencency
     // to compare these trends. Initialize the inputs and outputs:
     double cov00,cov01,cov11;
     double c0,c1,sumsq;
-    
+
     //Strides refer to the separation within
     // the array of consecutive points
     int xstride = 1;
-    int ystride = 1; 
-    
+    int ystride = 1;
+
     //The difference between the reference trend and
-    // the test trend should fit to a linear fit with 
-    // slope ~ 0 and intercept ~ 0. 
+    // the test trend should fit to a linear fit with
+    // slope ~ 0 and intercept ~ 0.
     assert(x_vec.size() == y_vec.size());
     gsl_fit_linear(
       x_vec.data(),
@@ -349,19 +350,19 @@ double CompareOutput(string filename_golden,string filename_test){
       &cov11,
       &sumsq
     );
-    
+
     std::cout<<std::endl;
     std::cout<<n<<" points in comparison"<<std::endl;
     std::cout<<"Fit: intercept = "<<c0<<" slope = "<<c1<<" sumsq = "<<sumsq<<std::endl;
-    
-    return c1;    
+
+    return c1;
 }
 
 void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
-
+  /*
   SetupBoosterModel(ForceFormula::PARKHOMCHUK);
   SetupBoosterModel(ForceFormula::DERBENEVSKRINSKY);
   SetupBoosterModel(ForceFormula::MESHKOV);
@@ -377,44 +378,44 @@ void testForce(){
   SetupBoosterModel(ForceFormula::ERLANGEN);
 
 
-/*
+
   //Lets see if this works:
-  Erlangen_fast = true;  
+  Erlangen_fast = true;
   std::cout<<"F"<<std::endl;
   SetupModel(ForceFormula::ERLANGEN); //F
 
-  Erlangen_fast = false;  
-  Erlangen_tight = true;  
+  Erlangen_fast = false;
+  Erlangen_tight = true;
   std::cout<<"T"<<std::endl;
   SetupModel(ForceFormula::ERLANGEN); //T
 
   Erlangen_tight = false;
-  Erlangen_stretched = true;  
+  Erlangen_stretched = true;
   std::cout<<"S"<<std::endl;
   SetupModel(ForceFormula::ERLANGEN); //S
-
+*/
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression
   string data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpDS.txt");
   string test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/DerbenevSkrinsky.txt");
-              
+
   double slope = CompareOutput(data_path,test_path);
   //JSPEC_ASSERT_THROW( abs(slope) < 1e-40 );
-  
+
   //A negative control: compare D&S forces to Parkhomchuk forces
-  SetupModel(ForceFormula::DERBENEVSKRINSKY);  
+  SetupModel(ForceFormula::DERBENEVSKRINSKY);
   data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpPark.txt");
-  test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/DerbenevSkrinsky.txt");  
+  test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/DerbenevSkrinsky.txt");
   slope = CompareOutput(data_path,test_path);
   JSPEC_ASSERT_THROW( abs(slope) > 1e-40 );
-  
+
   SetupModel(ForceFormula::PARKHOMCHUK);
   data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpPark.txt");
   test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Parkhomchuk.txt");
   slope = CompareOutput(data_path,test_path);
   JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
-  
+  /*
   SetupModel(ForceFormula::MESHKOV);
   data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpMesh.txt");
   test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Meshkov.txt");
@@ -429,11 +430,11 @@ void testForce(){
 
 */
 
-    
+
   JSPEC_TEST_END();
 
-  //TODO: Clean up after our test, delete the test files  
-    
+  //TODO: Clean up after our test, delete the test files
+
 }
 
 int main(int, char**)

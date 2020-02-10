@@ -127,16 +127,16 @@ int both(){
     //            dynamic(p_beam, cooler, e_beam, ring, outfile);
     ////            dynamic(p_beam, cooler, e_beam, ring, outfile);
     //            outfile.close();
-    
+
     JSPEC_TEST_END();
-    
+
     return 0;
 }
 
 
 int ecool(ForceFormula ff, double *check_rates){
     JSPEC_TEST_BEGIN("Electron cooling:");
-    
+
     //define coasting 12C6+ beam
     int n_charge = 6;
     double n_mass = 12;
@@ -187,10 +187,10 @@ int ecool(ForceFormula ff, double *check_rates){
     double rate_x, rate_y, rate_s;
     ecooling_rate(ecool_rate_paras, *force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
     std::cout<<std::endl;
-    std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
+    std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
 
-    
-//This set of test values was satisfied with the original F_const definitions 
+
+//This set of test values was satisfied with the original F_const definitions
 // in terms of k_ke in Parkhomchuk
 //    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
 //    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
@@ -202,7 +202,7 @@ int ecool(ForceFormula ff, double *check_rates){
     JSPEC_ASSERT_THROW(abs(rate_y - check_rates[1]) < 1e-5);
     JSPEC_ASSERT_THROW(abs(rate_s - check_rates[2]) < 1e-5);
 
-    
+
     std::cout<<"Force calculation"<<std::endl;
     //electrons and ions must be bunched for this to work
     double sigma_x = 1.5e-2;
@@ -211,19 +211,19 @@ int ecool(ForceFormula ff, double *check_rates){
     double n_particle = 1e7;
     GaussianBunch gb(n_particle,sigma_x,sigma_y,sigma_s);
     EBeam e_beam2(gamma_e, tmp_tr, tmp_long, gb);
-    Beam c_beam2(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, 
+    Beam c_beam2(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0,
                  sigma_s, //This makes sure c_beam is bunched and allows that v_long can have > 2 values
                  n_ptcl);
 
     n_long = 2;
     EcoolRateParas ecool_rate_paras2(n_tr, n_long);
     //ForceParas force_paras2(ForceFormula::DERBENEVSKRINSKY);
-    
+
     ForceParas *force_paras2 = ChooseForce(ff);
     CalculateForce(ecool_rate_paras2, *force_paras2, c_beam2, cooler, e_beam2, ring);
-    
+
     JSPEC_TEST_END();
-    
+
     return 0;
 }
 
@@ -282,11 +282,11 @@ int ibs(){
     ibs_solver.rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
     std::cout<<std::endl;
     std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
-    
+
     JSPEC_ASSERT_THROW(abs(rx_ibs - 0.000737069) < 1e-4);
     JSPEC_ASSERT_THROW(abs(ry_ibs + 8.61496e-6) < 1e-6);
     JSPEC_ASSERT_THROW(abs(rz_ibs - 0.000651936) < 1e-5);
-    
+
     // Test a different coefficient
     ibs_solver.set_k(0.2);
     ibs_solver.rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
@@ -295,14 +295,14 @@ int ibs(){
     JSPEC_ASSERT_THROW( abs(rx_ibs - 0.0006625) < 1e-4 );
     JSPEC_ASSERT_THROW( abs(ry_ibs - 6.59534e-05) < 1e-6 );
     JSPEC_ASSERT_THROW( abs(rz_ibs - 0.000651936) < 1e-5 );
-    
+
     JSPEC_TEST_END();
     return 0;
 }
 
 int dynamicibsbunched(){
     JSPEC_TEST_BEGIN("Dynamic IBS Bunched:")
-    
+
     // define proton beam;
     double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
     int Z;
@@ -333,21 +333,21 @@ int dynamicibsbunched(){
     ibs_solver = new IBSSolver_Martini(nu, nv, nz, log_c, k);
 
     dynamic_paras = new DynamicParas(3600, 360, true, false);
-    
+
     Cooler *cooler=nullptr;
     EBeam *e_beam=nullptr;
-    
+
     //Skip the Force visualization calculation
     dynamic_paras->set_test(true);
     dynamic(p_beam, *cooler, *e_beam, ring);
-    
+
     JSPEC_TEST_END();
     return 0;
 }
 
 int dynamicibs(){
     JSPEC_TEST_BEGIN("Dynamic IBS:")
-    
+
     double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
     int Z;
     Z = 1;
@@ -389,15 +389,15 @@ int dynamicibs(){
     dynamic_paras->set_test(true);
     dynamic(p_beam, *cooler, *e_beam, ring);
 
-    
+
     JSPEC_TEST_END();
     return 0;
 }
 
 int dynamicecool(){
-    
+
     JSPEC_TEST_BEGIN("Dynamic Ecool:");
-    
+
     // define proton beam;
     double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
     int Z;
@@ -462,15 +462,15 @@ int dynamicecool(){
     dynamic_paras->set_test(true);
     dynamic(p_beam, cooler, e_beam, ring);
 
-    
+
     JSPEC_TEST_END();
     return 0;
 }
 
 int dynamicboth(){
-    
+
     JSPEC_TEST_BEGIN("Dynamic IBS + ECOOL:");
-    
+
     srand(time(NULL));
     //            srand(0);
 
@@ -606,7 +606,7 @@ int dynamicboth(){
     dynamic_paras->set_test(true);
     dynamic(p_beam, cooler, e_beam, ring);
 
-    
+
     JSPEC_TEST_END();
     return 0;
 }
@@ -614,30 +614,30 @@ int dynamicboth(){
 
 int main(int, char**)
 {
-    
-    double check_rates[3];
-    check_rates[0] = -0.0087216;
-    check_rates[1] = -0.00907129;
-    check_rates[2] = -0.0191686;
-    ecool(ForceFormula::PARKHOMCHUK,check_rates);
 
-    check_rates[0] = -0.00503489;
-    check_rates[1] = -0.00544656;
-    check_rates[2] = -0.0122515;   
-    ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
+    double check_rates[3];
+    //  check_rates[0] = -0.0087216;
+   //check_rates[1] = -0.00907129;
+    //check_rates[2] = -0.0191686;
+    //ecool(ForceFormula::PARKHOMCHUK,check_rates);
+
+    //    check_rates[0] = -0.00503489;
+    //check_rates[1] = -0.00544656;
+    //check_rates[2] = -0.0122515;
+    //ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
 
 
 //    check_rates[0] = -1.72854;
 //    check_rates[1] = -1.72863;
-//    check_rates[2] = -2.61073;    
+//    check_rates[2] = -2.61073;
 //    ecool(ForceFormula::MESHKOV,check_rates);
 
 //    dynamicibsbunched();
 //    dynamicibs();
 //    dynamicecool();
-//    ibs();    
+//    ibs();
     //These both take a long time
     //dynamicboth();
    // both();
- 
+
 }

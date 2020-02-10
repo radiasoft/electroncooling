@@ -52,7 +52,7 @@ std::vector<string> E_BEAM_ARGS = {"GAMMA", "TMP_TR", "TMP_L", "SHAPE", "RADIUS"
     "SIGMA_Z", "LENGTH", "E_NUMBER", "RH", "RV", "R_INNER", "R_OUTTER", "PARTICLE_FILE", "TOTAL_PARTICLE_NUMBER",
     "BOX_PARTICLE_NUMBER", "LINE_SKIP", "VEL_POS_CORR","BINARY_FILE","BUFFER_SIZE"};
 std::vector<string> ECOOL_ARGS = {"SAMPLE_NUMBER", "FORCE_FORMULA"};
-std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","BUDKER","ERLANGEN"};
+std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY"};//,"MESHKOV","BUDKER","ERLANGEN"};
 std::vector<string> SIMULATION_ARGS = {"TIME", "STEP_NUMBER", "SAMPLE_NUMBER", "IBS", "E_COOL", "OUTPUT_INTERVAL",
     "SAVE_PARTICLE_INTERVAL", "OUTPUT_FILE", "MODEL", "REF_BET_X", "REF_BET_Y", "REF_ALF_X", "REF_ALF_Y",
     "REF_DISP_X", "REF_DISP_Y", "REF_DISP_DX", "REF_DISP_DY", "FIXED_BUNCH_LENGTH", "RESET_TIME", "OVERWRITE",
@@ -573,8 +573,8 @@ void calculate_ecool(Set_ptrs &ptrs) {
     assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
     EcoolRateParas ecool_paras(n_sample);
 
-    force_paras = ChooseForce(ptrs.ecool_ptr->force);   
-    
+    force_paras = ChooseForce(ptrs.ecool_ptr->force);
+
     assert(ptrs.ion_beam.get()!=nullptr && "MUST CREATE THE ION BEAM BEFORE CALCULATE ELECTRON COOLING RATE!");
     assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATE ELECTRON COOLING RATE!");
     double rx, ry, rz;
@@ -1373,9 +1373,9 @@ void set_ecool(string &str, Set_ecool *ecool_args){
     if (var == "FORCE_FORMULA") {
         if (val=="PARKHOMCHUK") ecool_args->force = ForceFormula::PARKHOMCHUK;
         else if (val=="DERBENEVSKRINSKY") ecool_args->force = ForceFormula::DERBENEVSKRINSKY;
-        else if (val=="MESHKOV") ecool_args->force = ForceFormula::MESHKOV;
-        else if (val=="BUDKER") ecool_args->force = ForceFormula::BUDKER;
-        else if (val=="ERLANGEN") ecool_args->force = ForceFormula::ERLANGEN;
+        //else if (val=="MESHKOV") ecool_args->force = ForceFormula::MESHKOV;
+        //else if (val=="BUDKER") ecool_args->force = ForceFormula::BUDKER;
+        //else if (val=="ERLANGEN") ecool_args->force = ForceFormula::ERLANGEN;
 
         else assert(false&&"Friction force formula NOT exists!");
     }
