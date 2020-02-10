@@ -20,7 +20,7 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
                             double *force_tr, double *force_long) {
 
 //Compiler should ignore #pragma it doesn't understand
-    //#pragma omp parallel for  
+    #pragma omp parallel for  
     for(unsigned long int i=0; i<ion_number; ++i){
         double result_trans,result_long;
         force(v_tr[i],v_long[i],d_perp_e[i],d_paral_e[i],temperature,charge_number,
@@ -38,7 +38,7 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
                             double *force_tr, double *force_long, bool do_test) {
     
 //Compiler should ignore #pragma it doesn't understand
-    //#pragma omp parallel for //ordered schedule(dynamic,10)
+    #pragma omp parallel for //ordered schedule(dynamic,10)
     for(unsigned long int i=0; i<ion_number; ++i){
         double result_trans,result_long;
         force(v_tr[i],v_long[i],d_perp_e,d_paral_e,temperature,charge_number,
@@ -88,6 +88,7 @@ void Force_Parkhomchuk::force(double v_tr, double v_long, double d_perp_e, doubl
     double force = 0.0;
     
     if(v2>0){
+        //In SI units, this is m*v_tr /(qB). In CGS units, there's an extra k_c in the numerator.
         double rho_lamor = k_me_kg * d_perp_e / ( magnetic_field * k_e ); //in units of m
         double v2_eff_e = temperature * k_c*k_c / (k_me*1e6);
         
@@ -96,7 +97,7 @@ void Force_Parkhomchuk::force(double v_tr, double v_long, double d_perp_e, doubl
         double dlt = v2 + dlt2_eff_e;
 
         //double rho_min_const = charge_number * k_e * k_ke * k_c*k_c / (k_me*1e6);
-        double rho_min_const = charge_number * k_re * k_c*k_c; //in units of m
+        double rho_min_const = charge_number * k_re * k_c*k_c; //SI, in units of m
         double rho_min = rho_min_const/dlt;
         dlt = sqrt(dlt);
 
@@ -211,14 +212,11 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
                      int charge_number,double density_e,double time_cooler,double magnetic_field, 
                      double &force_result_tr, double &force_result_long){
     
-  //double v2_eff_e   = temperature * k_c*k_c / (k_me*1e6);
-  //double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
-  double rho_L      = k_me_kg * d_perp_e / ( magnetic_field * k_e );
+  double rho_L      = k_me_kg * d_perp_e / ( magnetic_field * k_e ); //SI units, in meters
     
   //Calculate rho_max as in the Parkhomchuk model
-  double v2      = v_tr*v_tr + v_long*v_long;
-  
-  double rho_max = max_impact_factor(sqrt(v2),charge_number,density_e,time_cooler);
+  double v_eff      = sqrt(v_tr*v_tr + v_long*v_long);
+  double rho_max = max_impact_factor(v_eff,charge_number,density_e,time_cooler);
   double lm = log(rho_max / rho_L); //Coulomb Log ~ 5
 
   if(lm < 0.) lm = 0.0;
@@ -230,6 +228,7 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
       
   double result_trans,result_long, error_trans,error_long;
 
+  //Solve indefinite integrals with GSL
   EvalIntegral(&Force_DS::trans_integrand,params,result_trans,error_trans);
   EvalIntegral(&Force_DS::long_integrand,params,result_long,error_long);
      
@@ -245,16 +244,16 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
                           int charge_number,double density_e,double time_cooler,double magnetic_field,
                           double &force_result_trans, double &force_result_long){
     
-  double rho_L    = k_me_kg * d_perp_e / ( magnetic_field * k_e );
+  double rho_L    = k_me_kg * d_perp_e / ( magnetic_field * k_e ); //SI units, in m
   double wp_const = 4 * k_pi * k_c*k_c * k_re;
   double wp       = sqrt(wp_const * density_e);
     
   //A fudge factor to smooth the friction force shape. Using the
-  // "Classical" definition here from the BETACOOL documentation
+  // "Classical" default definition here from the BETACOOL documentation
   double k = 2;
 
-  //double rho_min_const = charge_number * k_e*k_e * k_c*k_c / (k_me * 1e6);
-  double rho_min_const = charge_number * k_re * k_c*k_c;
+  //double rho_min_const = charge_number * k_e*k_e * k_c*k_c / (k_me * 1e6); //CGS units
+  double rho_min_const = charge_number * k_re * k_c*k_c; //SI units
     
   double v2      = v_tr*v_tr + v_long*v_long;
   double v3      = pow(sqrt(v2),3);
@@ -269,7 +268,7 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
   //intermediate impact parameter
   double rho_F = rho_L * sqrt(v2 + d_paral_e*d_paral_e) / d_perp_e;
   
-  double rho_max = max_impact_factor(sqrt(v2 * d_paral_e*d_paral_e),charge_number,density_e,time_cooler);
+  double rho_max = max_impact_factor(sqrt(v2 + d_paral_e*d_paral_e),charge_number,density_e,time_cooler);
 
   k = 2;
   //Coulomb Logarithms
@@ -333,12 +332,12 @@ void Force_Budker::force(double v_tr, double v_long, double d_perp_e, double d_p
     double v2 = v_tr*v_tr + v_long*v_long;
     double v_mag = sqrt(v_tr*v_tr + v_long*v_long);
 
-    double rho_max = max_impact_factor(sqrt(v2),charge_number,density_e,time_cooler);
+    double rho_max = max_impact_factor(v_mag,charge_number,density_e,time_cooler);
 
     // c*c * r_e = k_ke * e*e/m_e, so why doesn't this substitution work? 
     
     //double rho_min = charge_number * k_e*k_e / (k_me*(v_mag*v_mag + delta_e*delta_e));
-    double rho_min_const = charge_number * k_re * k_c*k_c; //Gives LC ~ 9
+    double rho_min_const = charge_number * k_re * k_c*k_c; //Gives LC ~ 9. SI units, in m
     //double rho_min_const = charge_number * k_e*k_e / k_me; //Gives LC ~ 100
     //double rho_min_const = charge_number * k_e*k_e / k_me_kg; //Gives LC ~ 20-50
     double rho_min = rho_min_const / (v2 + d_paral_e*d_paral_e + d_perp_e*d_perp_e);
@@ -346,7 +345,7 @@ void Force_Budker::force(double v_tr, double v_long, double d_perp_e, double d_p
     double lc = log( rho_max / rho_min );
     if(lc<0.) lc = 0.;
     
-    double arg = sqrt(v2) / delta_e;
+    double arg = v_mag / delta_e;
     double phi = sqrt( 2 / k_pi ) * ( erf(arg/sqrt(2)) - arg * exp((-arg*arg)/2) );
     double result = phi * pow(v_mag,-3);
     
@@ -369,9 +368,9 @@ double Force_Erlangen::fast_trans(double *k, size_t dim, void *params){
     double d_paral_e = p->d_paral_e;
    
     //The Coulomb log
-    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field);
-    double rho_min_const = p->Z * k_re * k_c*k_c;
-//    double rho_min_const = p->Z * k_e*k_e * k_ke / k_me;
+    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field); //SI units, m
+    double rho_min_const = p->Z * k_re * k_c*k_c; //SI units, m
+//    double rho_min_const = p->Z * k_e*k_e * k_ke / k_me; //CGS units
     double rho_min = rho_min_const / ( y*y + z*z + pow(v_t*sin(phi),2));
     
     //for some regions of integration, use the smaller rho_max
@@ -400,8 +399,8 @@ double Force_Erlangen::fast_long(double *k, size_t dim, void *params){
     double d_paral_e = p->d_paral_e;
     
     //The Coulomb log
-    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field);
-    double rho_min_const = p->Z * k_re * k_c*k_c;
+    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field); //SI units, m
+    double rho_min_const = p->Z * k_re * k_c*k_c; //SI units, m
 //    double rho_min_const = p->Z * k_e*k_e * k_ke / k_me;
     double rho_min = rho_min_const / ( y*y + z*z + pow(v_t*sin(phi),2));
     

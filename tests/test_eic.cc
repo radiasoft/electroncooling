@@ -59,7 +59,7 @@ void SetupModel(ForceFormula ff)
   //define the cooler
   double cooler_length = 1;
   double n_section = 1;
-  double magnetic_field = 5; //0.039
+  double magnetic_field = 5; 
   double beta_h = 10;
   double beta_v = 17;
   double dis_h = 0;
@@ -123,6 +123,98 @@ void SetupModel(ForceFormula ff)
     
   return;
 }
+
+
+void SetupBoosterModel(ForceFormula ff)
+{
+  //Set up the same model as the Booster example on Sirepo
+  int n_charge = 1;
+  double n_mass = 1;
+  double kinetic_energy = 7942.25; //gamma = 9.526
+  double gamma = 1+kinetic_energy/(n_mass*k_u);
+  double beta = sqrt(1-1/(gamma*gamma));
+  double emit_nx0 = 2.2e-6;
+  double emit_ny0 = 2.2e-6;
+  std::cout<<std::endl;
+  std::cout<<"gamma ="<<gamma<<" beta ="<<beta<<" emit_nx0="<<emit_nx0<<std::endl;
+  double dp_p0 = 6e-4;
+  double n_ptcl = 6.58e13;
+  double sigma_s_ion = 6e-4;
+  Beam ion_beam(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, sigma_s_ion, n_ptcl);
+
+  //define the ring (not really used for friction force calculation)
+  string filename = CMAKE_SOURCE_DIR + std::string("/data/Booster.tfs");
+  
+  Lattice lattice(filename);
+  Ring ring(lattice, ion_beam);
+
+  //define the cooler
+  double cooler_length = 3.4;
+  double n_section = 1;
+  double magnetic_field = 0.039;
+  double beta_h = 10;
+  double beta_v = 10;
+  double dis_h = 0;
+  double dis_v = 0;
+  Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v);
+
+  //define electron beam
+  double current = 2; //Amps 
+  double radius = 0.004; //m
+  double neutralisation = 2;
+  UniformCylinder uc(current,radius,neutralisation);
+
+  double gamma_e = ion_beam.gamma();
+  double tmp_tr = 0.1;
+  double tmp_long = 0.01;
+  EBeam e_beam(gamma_e, tmp_tr, tmp_long, uc);
+    
+  //This choice tells ecool_rate_paras to select
+  // 4 transverse velocities spanning the whole space,
+  // from which we can whittle down to the one we are
+  // interested in. As yet, there is no way to select
+  // a single velocity in a straightforward way.
+  unsigned int n_tr = 100;
+  unsigned int n_long = 400;
+  EcoolRateParas ecool_rate_paras(n_tr, n_long); //This sets IonSample::SingleParticle
+
+  double rate_x, rate_y, rate_s;
+            
+  ForceParas *force_paras = ChooseForce(ff);
+
+  if(force_paras->formula() == ForceFormula::ERLANGEN){
+      std::string suffix;
+      //Start with a clean slate
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
+                              
+      if(Erlangen_fast){
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
+          suffix += "F";
+      }
+      if(Erlangen_tight) {
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(true);
+          suffix += "T";
+      }
+      if(Erlangen_stretched){
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(true);
+          suffix += "S";
+      }
+      force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
+      
+      //Speed this up
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
+      
+  }
+    
+  force_paras->set_do_test(true);
+  ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
+    
+  return;
+}
+
 
 //A method to sort rows of a matrix based on a specific column.
 // This modifies the original matrix
@@ -270,6 +362,22 @@ void testForce(){
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
 
+  SetupBoosterModel(ForceFormula::PARKHOMCHUK);
+  SetupBoosterModel(ForceFormula::DERBENEVSKRINSKY);
+  SetupBoosterModel(ForceFormula::MESHKOV);
+  SetupBoosterModel(ForceFormula::BUDKER);
+
+  Erlangen_fast = true;
+  SetupBoosterModel(ForceFormula::ERLANGEN);
+  Erlangen_fast = false;
+  Erlangen_stretched = true;
+  SetupBoosterModel(ForceFormula::ERLANGEN);
+  Erlangen_stretched = false;
+  Erlangen_tight = true;
+  SetupBoosterModel(ForceFormula::ERLANGEN);
+
+
+/*
   //Lets see if this works:
   Erlangen_fast = true;  
   std::cout<<"F"<<std::endl;
@@ -319,7 +427,7 @@ void testForce(){
   slope = CompareOutput(data_path,test_path);
   //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
 
-  //SetupModel(ForceFormula::ERLANGEN);    
+*/
 
     
   JSPEC_TEST_END();
