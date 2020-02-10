@@ -5,7 +5,7 @@
 #include <cmath>
 #include "constants.h"
 
-enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV,BUDKER,ERLANGEN};
+enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY};//,MESHKOV,BUDKER,ERLANGEN};
 
 class ForceParas{
  protected:
@@ -96,81 +96,6 @@ class Force_DS : public ForceParas{
     
 };
 
-class Force_Meshkov : public ForceParas{
-    private:
-    //Force-dependent constants
-        //The factor of pi/2 comes from the difference between the constants
-        // used in Parkhomchuk with the constants used in the Meshkov representation
-        //const double f_const = -4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2); 
-        //const char* test_filename = "Meshkov.txt";
-        double k_ = 2;
-    public:
-        Force_Meshkov():ForceParas(ForceFormula::MESHKOV,-4 * (k_pi/2) * k_me_kg * pow(k_re*k_c*k_c,2),"Meshkov.txt"){};
-    
-        int set_k(double k){k_ = k; return 0;}
-        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
-                           int charge_number, double density_e,double time_cooler,double magnetic_field, 
-                           double &force_result_trans, double &force_result_long);
-};
-
-class Force_Budker : public ForceParas{
-    private:
-    //Force-dependent constants
-        //The factor of pi comes from the difference between the constants
-        // used in Parkhomchuk with the constants used in the Meshkov representation
-  
-    public:
-          Force_Budker():ForceParas(ForceFormula::BUDKER,-4 * k_pi * k_me_kg * pow(k_re*k_c*k_c,2),"Budker.txt"){};
-    
-        virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
-                            double density_e,double time_cooler,double magnetic_field, double &force_result_trans, double &force_result_long);
-};
-
-class Force_Erlangen : public ForceParas{
-    private:
-        //const char* test_filename = "Erlangen.txt";
-        bool fast_ = true;
-        bool stretched_ = false;
-        bool tight_ = false;
-        double cutoff_ = 1e5; //cutoff value for integrals
-        size_t calls_ = 5e5; //The number of MC samples when calculating integrals
-    
-        struct int_info {
-            double V_trans;
-            double V_long;
-            double d_perp_e;
-            double d_paral_e;
-            double rho_max;
-            double B_field;
-            int Z;
-        };
-    
-        //Definitions of integrals that need to be evaluated through Monte Carlo:
-        static double fast_trans(double *k, size_t dim, void *params);
-        static double fast_long(double *k, size_t dim, void *params);
-        static double tight_trans(double *k, size_t dim, void *params);
-        static double tight_long(double *k, size_t dim, void *params);
-        static double stretched_trans(double *k, size_t dim, void *params);
-        static double stretched_long(double *k, size_t dim, void *params);
-        void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
-                          double *xl, double *xu, size_t dim, double &result, double &error);
-    
-    public:
-        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN, -k_me_kg * pow(k_re*k_c*k_c,2),"Erlangen.txt"){};
-
-        //The Erlangen paper uses notation to hide some factors of k_ke. We can re-define this in terms of k_re
-//        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN, -k_me_kg * k_re*k_re,"Erlangen.txt"){};
-
-        int set_fast(bool k){fast_ = k; return 0;}
-        int set_tight(bool k){tight_ = k; return 0;}
-        int set_stretched(bool k){stretched_ = k; return 0;}
-        int set_cutoff(double c){cutoff_ = c; return 0;}
-        int set_calls(size_t c){calls_ = c; return 0;}    
-    
-         virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, 
-                            int charge_number, double density_e, double time_cooler,
-                            double magnetic_field, double &force_result_trans, double &force_result_long);
-};
 
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_z, double *density_e,
                   ForceParas &force_paras, double *force_tr, double *force_long);

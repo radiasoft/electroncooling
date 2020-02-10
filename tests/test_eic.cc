@@ -26,13 +26,6 @@ extern ForceParas * force_paras;
 // 'golden' dataset stored in the data subdirectory.
 
 
-//The Erlangen force model is a special case, we'll need to 
-// turn on/off some switches to test all configurations
-bool Erlangen_fast      = false;
-bool Erlangen_tight     = false;
-bool Erlangen_stretched = false;
-
-
 void SetupModel(ForceFormula ff)
 {
   //define coasting gold ion beam
@@ -90,32 +83,6 @@ void SetupModel(ForceFormula ff)
   double rate_x, rate_y, rate_s;
             
   ForceParas *force_paras = ChooseForce(ff);
-
-  if(force_paras->formula() == ForceFormula::ERLANGEN){
-      std::string suffix;
-      //Start with a clean slate
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
-                              
-      if(Erlangen_fast){
-          dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
-          suffix += "F";
-      }
-      if(Erlangen_tight) {
-          dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(true);
-          suffix += "T";
-      }
-      if(Erlangen_stretched){
-          dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(true);
-          suffix += "S";
-      }
-      force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
-      
-      //Speed this up
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
-      
-  }
     
   force_paras->set_do_test(true);
   ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -181,32 +148,6 @@ void SetupBoosterModel(ForceFormula ff)
   double rate_x, rate_y, rate_s;
             
   ForceParas *force_paras = ChooseForce(ff);
-
-  if(force_paras->formula() == ForceFormula::ERLANGEN){
-      std::string suffix;
-      //Start with a clean slate
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
-                              
-      if(Erlangen_fast){
-          dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
-          suffix += "F";
-      }
-      if(Erlangen_tight) {
-          dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(true);
-          suffix += "T";
-      }
-      if(Erlangen_stretched){
-          dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(true);
-          suffix += "S";
-      }
-      force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
-      
-      //Speed this up
-      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
-      
-  }
     
   force_paras->set_do_test(true);
   ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -361,38 +302,6 @@ void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
-
-  SetupBoosterModel(ForceFormula::PARKHOMCHUK);
-  SetupBoosterModel(ForceFormula::DERBENEVSKRINSKY);
-  SetupBoosterModel(ForceFormula::MESHKOV);
-  SetupBoosterModel(ForceFormula::BUDKER);
-
-  Erlangen_fast = true;
-  SetupBoosterModel(ForceFormula::ERLANGEN);
-  Erlangen_fast = false;
-  Erlangen_stretched = true;
-  SetupBoosterModel(ForceFormula::ERLANGEN);
-  Erlangen_stretched = false;
-  Erlangen_tight = true;
-  SetupBoosterModel(ForceFormula::ERLANGEN);
-
-
-/*
-  //Lets see if this works:
-  Erlangen_fast = true;  
-  std::cout<<"F"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //F
-
-  Erlangen_fast = false;  
-  Erlangen_tight = true;  
-  std::cout<<"T"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //T
-
-  Erlangen_tight = false;
-  Erlangen_stretched = true;  
-  std::cout<<"S"<<std::endl;
-  SetupModel(ForceFormula::ERLANGEN); //S
-
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression
@@ -415,20 +324,6 @@ void testForce(){
   slope = CompareOutput(data_path,test_path);
   JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
   
-  SetupModel(ForceFormula::MESHKOV);
-  data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpMesh.txt");
-  test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Meshkov.txt");
-  slope = CompareOutput(data_path,test_path);
-  //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
-
-  SetupModel(ForceFormula::BUDKER);
-  data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpBudker.txt");
-  test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Budker.txt");
-  slope = CompareOutput(data_path,test_path);
-  //JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
-
-*/
-
     
   JSPEC_TEST_END();
 
