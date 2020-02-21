@@ -622,23 +622,31 @@ int main(int, char**)
     check_rates[2] = -0.0191686;
     ecool(ForceFormula::PARKHOMCHUK,check_rates);
 
-    check_rates[0] = -0.00437511;//-0.00503489;
-    check_rates[1] = -0.00466975;//-0.00544656;
-    check_rates[2] = -0.0103422;//-0.0122515;   
+    check_rates[0] = -0.00875023; //-0.00503489;
+    check_rates[1] = -0.00933951; //-0.00544656;
+    check_rates[2] = -0.0206844; //-0.0122515;   
     ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
 
-
-    check_rates[0] = -0.168594;//-1.72854;
-    check_rates[1] = -0.167933;//-1.72863;
-    check_rates[2] = -0.286098;//-2.61073;    
+    check_rates[0] = -0.168594; //-1.72854;
+    check_rates[1] = -0.167933; //-1.72863;
+    check_rates[2] = -0.286098; //-2.61073;    
     ecool(ForceFormula::MESHKOV,check_rates);
+    
+    check_rates[0] = -0.0488711;
+    check_rates[1] = -0.0493219;
+    check_rates[2] = -0.0997104; 
+    ecool(ForceFormula::BUDKER,check_rates);
 
-//    dynamicibsbunched();
-//    dynamicibs();
-//    dynamicecool();
-//    ibs();    
+    //TODO: Double check these binney force vals still inline with betacool
+    check_rates[0] = 0.0473836;
+    check_rates[1] = 0.0474829;
+    check_rates[2] = 0.0626706;
+    ecool(ForceFormula::UNMAGNETIZED,check_rates);
+
+//    dynamicibsbunched(); //segfaults - bad lattice?
+//    dynamicibs(); //segfaults - bad lattice?
     //These both take a long time
     //dynamicboth();
-   // both();
+    //both();
  
 }

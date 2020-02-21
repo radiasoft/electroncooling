@@ -34,6 +34,26 @@ Beam::Beam(int charge_number, double mass_number, double kinetic_energy, double 
     energy_spread_ = beta_*beta_*dp_p_;
 }
 
+Beam::Beam(const Beam& old_beam){
+    charge_number_ = old_beam.charge_number();
+    mass_number_ = old_beam.mass_number();
+    kinetic_energy_ = old_beam.kinetic_energy();
+    emit_nx_ = old_beam.emit_nx();
+    emit_ny_ = old_beam.emit_ny();
+    particle_number_ = old_beam.particle_number();
+    dp_p_ = old_beam.dp_p();    
+    
+    mass_ = old_beam.mass();
+    gamma_ = old_beam.gamma();
+    beta_ = old_beam.beta();
+    r_ = old_beam.r();
+    bunched_ = old_beam.bunched();
+    sigma_s_ = old_beam.sigma_s();
+    emit_x_ = old_beam.emit_x();
+    emit_y_ = old_beam.emit_y();
+    energy_spread_ = beta_*beta_*dp_p_;
+}
+
 int Beam::set_center(int i, double x) {
     if(i<3) {
         center_[i] = x;
@@ -273,6 +293,16 @@ EBeam::EBeam(double gamma, EBeamShape &shape_defined):Beam(-1, k_me/k_u, (gamma-
         temperature_ = Temperature::USER_DEFINE;
     }
 }
+//copy constructor
+EBeam::EBeam(const EBeam& old_ebeam):Beam(-1, k_me/k_u, (old_ebeam.gamma()-1)*k_me, 0, 0, 0, 0) {
+    shape_ = old_ebeam.shape_;
+    tmp_tr_ = old_ebeam.tmp_tr();
+    tmp_long_ = old_ebeam.tmp_long();
+    v_rms_long_ = old_ebeam.v_rms_long();
+    v_rms_tr_ = old_ebeam.v_rms_tr();
+    velocity_ = old_ebeam.velocity();
+    temperature_ = old_ebeam.temperature();
+    }
 
 int GaussianBunch::density(double *x, double *y, double *z, Beam &beam, double *ne, unsigned int n_particle){
     double amp = n_electron_/(sqrt(8*k_pi*k_pi*k_pi)*sigma_x_*sigma_y_*sigma_s_);

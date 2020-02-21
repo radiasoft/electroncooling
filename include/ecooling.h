@@ -19,13 +19,13 @@ class EcoolRateParas{
     int n_long_sample_ = 50;
 
 public:
-    IonSample ion_sample(){return ion_sample_;}
-    int n_sample(){return n_sample_;}
-    int n_tr(){return n_tr_;}
-    int n_long(){return n_long_;}
-    double bunch_separate(){return bunch_separate_;}
-    bool shift(){return shift_;}
-    int n_long_sample(){return n_long_sample_;}
+    IonSample ion_sample()const {return ion_sample_;}
+    int n_sample()const {return n_sample_;}
+    int n_tr()const {return n_tr_;}
+    int n_long()const {return n_long_;}
+    double bunch_separate()const {return bunch_separate_;}
+    bool shift()const {return shift_;}
+    int n_long_sample()const {return n_long_sample_;}
     int set_ion_sample(IonSample s){ion_sample_ = s; return 0;}
     int set_n_sample(int n_sample){n_sample_ = n_sample; return 0;}
     int set_shift(bool b){shift_ = b; return 0;}
@@ -40,7 +40,8 @@ public:
         if (n_long_<2) n_long_ = 2;
         //TODO: Why is this n_tr^2 * n_long and not n_tr * n_long? 
         n_sample_ = n_tr_*n_tr_*n_long_;
-        }
+    }
+    EcoolRateParas(const EcoolRateParas&); //copy constructor
 };
 
 int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &ion, Cooler &cooler, EBeam &ebeam,

@@ -155,6 +155,74 @@ void SetupBoosterModel(ForceFormula ff)
     
   return;
 }
+void BetacoolBoosterModel(ForceFormula ff)
+{
+  //Set up the benchmarking model provided by He Zhang
+  int n_charge = 1;
+  double n_mass = 1;
+  double kinetic_energy = 14097.; //MeV, Betacool uses GeV/u, this fixes momentum @ 15 GeV/c
+  double gamma = 1+kinetic_energy/(n_mass*k_u); // = 16.13405
+  double beta = sqrt(1-1/(gamma*gamma));
+  double emit_nx0 = 1.039757/1e6; //normalized emittance in m, converted from 1.039 pi-mm-mrad (normalized), in colliding beam window
+  double emit_ny0 = emit_nx0;
+  std::cout<<std::endl;
+  std::cout<<"gamma ="<<gamma<<" beta ="<<beta<<" emit_nx0="<<emit_nx0<<std::endl;
+  double dp_p0 = 0.00291917972; //GeV/c, corresponding to 0.002 in unitless longitudinal scale (?)
+  double n_ptcl = 3.6e11; //from coliding beam window
+  double sigma_s_ion = 0.3; //m, from 30cm, setting this defines the beam state as bunched
+
+  //This constructor defines a bunched ion beam with rms width sigma_s_ion
+  //Beam ion_beam(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, sigma_s_ion, n_ptcl);
+
+  //This constructor defines a continuous ion beam
+  Beam ion_beam(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, n_ptcl); 
+
+  //define the ring (not really used for friction force calculation)
+  string filename = CMAKE_SOURCE_DIR + std::string("/data/Booster.tfs");
+  
+  Lattice lattice(filename);
+  Ring ring(lattice, ion_beam);
+
+  //define the cooler
+  double cooler_length = 10; //in m
+  double n_section = 1;
+  double magnetic_field = 0.1; //Tesla, from 1kG 
+  double beta_h = 10; //m
+  double beta_v = 10; //m
+  double dis_h = 0;
+  double dis_v = 0;
+  Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v);
+
+  //define electron beam
+  double current = 2; //Amps 
+  double radius = 0.008; //m, from 0.8cm
+  double neutralisation = 2; //%from 200%
+  UniformCylinder uc(current,radius,neutralisation);
+
+  double gamma_e = ion_beam.gamma();
+  double tmp_tr = 0.1; //for parkhomchuck 
+  double tmp_long = 0.1;
+  EBeam e_beam(gamma_e, tmp_tr, tmp_long, uc);
+    
+  //This choice tells ecool_rate_paras to select
+  // 4 transverse velocities spanning the whole space,
+  // from which we can whittle down to the one we are
+  // interested in. As yet, there is no way to select
+  // a single velocity in a straightforward way.
+  unsigned int n_tr = 100;
+  unsigned int n_long = 400;
+  EcoolRateParas ecool_rate_paras(n_tr, n_long); //This sets IonSample::SingleParticle
+
+  double rate_x, rate_y, rate_s;
+            
+  ForceParas *force_paras = ChooseForce(ff);
+    
+  force_paras->set_do_test(true);
+  ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+  std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;  
+    
+  return;
+}
 
 
 //A method to sort rows of a matrix based on a specific column.
@@ -302,6 +370,7 @@ void testForce(){
 
   JSPEC_TEST_BEGIN("Magnetized Electron Cooling:");
 
+  BetacoolBoosterModel(ForceFormula::PARKHOMCHUK);
   //Run the quick simulation for the model
   SetupModel(ForceFormula::DERBENEVSKRINSKY);
   //Get the output and compare via regression
