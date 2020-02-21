@@ -114,42 +114,6 @@ void Force_Parkhomchuk::force(double v_tr, double v_long, double d_perp_e, doubl
     force_result_trans = force * v_tr;
     force_result_long = force * v_long;
 
-/*  
-    double f_con = -4*k_c*k_c*k_ke*k_ke*k_e*k_e*k_e/(k_me*1e6);
-    double v2_eff_e = temperature*k_c*k_c/(k_me*1e6);
-    double wp_const = 4*k_pi*k_c*k_c*k_e*k_ke/(k_me*1e6);
-    double rho_min_const = charge_number*k_e*k_ke*k_c*k_c/(k_me*1e6);
-    
-    double dlt2_eff_e = d_paral_e*d_paral_e+v2_eff_e;
-    double rho_lamor = k_me*1e6*d_perp_e/(magnetic_field*k_c*k_c);
-    
-    double v2 = v_tr*v_tr+v_long*v_long;
-    if(v2>0){
-        double dlt = v2+dlt2_eff_e;
-        //Calculate rho_min
-        double rho_min = rho_min_const/dlt;
-        dlt = sqrt(dlt);
-        double wp = sqrt(wp_const*density_e);
-
-        //Calculate rho_max
-        double rho_max = dlt/wp;
-        double rho_max_2 = pow(3*charge_number/density_e, 1.0/3);
-        if(rho_max<rho_max_2) rho_max = rho_max_2;
-        double rho_max_3 = dlt*time_cooler;
-        if(rho_max>rho_max_3) rho_max = rho_max_3;
-
-        double lc = log((rho_max+rho_min+rho_lamor)/(rho_min+rho_lamor));   //Coulomb Logarithm =~5
-        std::cout<<lc<<std::endl;
-        //Calculate friction force
-        double f = f_con*density_e*lc/(dlt*dlt*dlt);
-        force_result_trans = f*v_tr;
-        force_result_long = f*v_long;
-    }
-    else{
-        force_result_trans = 0;
-        force_result_long = 0;
-    }
-*/
 }    
 
 double Force_DS::trans_integrand(double alpha,void *params){

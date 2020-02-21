@@ -328,6 +328,7 @@ int main(int argc, char** argv) {
 
                 break;
             }
+    
             case Test::IBS: {
                 //********************************
                 // Test IBS rate
@@ -680,4 +681,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

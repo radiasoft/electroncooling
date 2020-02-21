@@ -971,6 +971,10 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
         if(ne[i] > ne_max) ne_max = ne[i];
         if(ne[i] < ne_min) ne_min = ne[i];   
     }
+
+    //Enforce speed limits
+    if(v_tr_min < -k_c) v_tr_min = -k_c;
+    if(v_tr_max > k_c) v_tr_max = k_c;
     
     //std::cout<<"V_long min = "<<v_long_min<<" V_long max = "<<v_long_max<<std::endl;
     std::cout<<"V_tr min = "<<v_tr_min<<" V_tr max = "<<v_tr_max<<std::endl;
