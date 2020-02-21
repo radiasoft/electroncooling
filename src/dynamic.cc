@@ -525,8 +525,8 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     //Now, calculate the force as a function of velocity for plotting.
    // Skip this calculation if we're in the testing suite
-    if(!dynamic_paras->test() && ecool &&
-       ion.bunched() && ebeam.bunched()){
+    if(ecool){// && !dynamic_paras->test() && 
+       //       ion.bunched() && ebeam.bunched()){
        CalculateForce(*ecool_paras, *force_paras, ion, cooler, ebeam, ring);
        save_forces_sdds(dynamic_paras->n_sample(), "force_table.txt");
     }
