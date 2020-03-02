@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
                 unsigned int n_sample = 10000;
                 ecool_paras = new EcoolRateParas(n_sample);
                 //define friction force formula
-                force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+                force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
                 double rate_x, rate_y, rate_s;
                 ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -321,9 +321,9 @@ int main(int argc, char** argv) {
                 unsigned int n_long = 100;
                 EcoolRateParas ecool_rate_paras(n_tr, n_long);
 
-                ForceParas force_paras(ForceFormula::PARKHOMCHUK);
+                ForceParas *force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
                 double rate_x, rate_y, rate_s;
-                ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+                ecooling_rate(ecool_rate_paras, *force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
                 std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
 
                 break;
@@ -518,7 +518,7 @@ int main(int argc, char** argv) {
                 unsigned int n_sample = 40000;
                 ecool_paras = new EcoolRateParas(n_sample);
                 //define friction force formula
-                force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+                force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
                 //define dynamic simulation
                 dynamic_paras = new DynamicParas(60, 120, false, true);
                 dynamic_paras->set_model(DynamicModel::MODEL_BEAM);
@@ -616,7 +616,7 @@ int main(int argc, char** argv) {
                 unsigned int n_sample = 100000;
                 ecool_paras = new EcoolRateParas(n_sample);
     //            //define friction force formula
-                force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+                force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
                 double rate_x, rate_y, rate_s;
                 ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);

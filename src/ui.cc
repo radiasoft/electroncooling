@@ -8,6 +8,7 @@
 #include "beam.h"
 #include "constants.h"
 #include "ibs.h"
+#include "force.h"
 
 using std::string;
 
@@ -51,7 +52,7 @@ std::vector<string> E_BEAM_ARGS = {"GAMMA", "TMP_TR", "TMP_L", "SHAPE", "RADIUS"
     "SIGMA_Z", "LENGTH", "E_NUMBER", "RH", "RV", "R_INNER", "R_OUTTER", "PARTICLE_FILE", "TOTAL_PARTICLE_NUMBER",
     "BOX_PARTICLE_NUMBER", "LINE_SKIP", "VEL_POS_CORR","BINARY_FILE","BUFFER_SIZE"};
 std::vector<string> ECOOL_ARGS = {"SAMPLE_NUMBER", "FORCE_FORMULA"};
-std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY"};
+std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY"};//,"MESHKOV","BUDKER","ERLANGEN"};
 std::vector<string> SIMULATION_ARGS = {"TIME", "STEP_NUMBER", "SAMPLE_NUMBER", "IBS", "E_COOL", "OUTPUT_INTERVAL",
     "SAVE_PARTICLE_INTERVAL", "OUTPUT_FILE", "MODEL", "REF_BET_X", "REF_BET_Y", "REF_ALF_X", "REF_ALF_Y",
     "REF_DISP_X", "REF_DISP_Y", "REF_DISP_DX", "REF_DISP_DY", "FIXED_BUNCH_LENGTH", "RESET_TIME", "OVERWRITE",
@@ -537,9 +538,8 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
     IBSModel model = ptrs.ibs_ptr->model;
     bool ibs_by_element = ptrs.ibs_ptr->ibs_by_element;
 
-
-    if(model == IBSModel::MARTINI) {
-        assert(nu>0 && nv>0 && (k <= 1) && (k >= 0) && ((log_c > 0) || (nz > 0)) && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
+    if(model==IBSModel::MARTINI) {
+        assert(nu>0 && nv>0 && k<=1 && k>=0 && "WRONG PARAMETER VALUE FOR IBS RATE CALCULATION!");
         delete ibs_solver;
         ibs_solver = new IBSSolver_Martini(nu, nv, nz, log_c, k);
         ibs_solver->set_ibs_by_element(ibs_by_element);
@@ -564,6 +564,7 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
     }
 }
 
+
 void calculate_ecool(Set_ptrs &ptrs) {
     assert(ptrs.cooler.get()!=nullptr && "MUST CREATE THE COOLER BEFORE CALCULATE ELECTRON COOLING RATE!");
     assert(ptrs.e_beam.get()!=nullptr && "MUST CREATE THE ELECTRON BEAM BEFORE CALCULATE ELECTRON COOLING RATE!");
@@ -571,20 +572,13 @@ void calculate_ecool(Set_ptrs &ptrs) {
     int n_sample = ptrs.ecool_ptr->n_sample;
     assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
     EcoolRateParas ecool_paras(n_sample);
-//    std::string force_formula = ptrs.ecool_ptr->force;
-//    assert(std::find(FRICTION_FORCE_FORMULA.begin(),FRICTION_FORCE_FORMULA.end(),force_formula)!=FRICTION_FORCE_FORMULA.end()
-//               && "UNKNOWN FRICTION FORCE FORMULA SECTION_ECOOL!");
-//    ForceFormula force;
-//    if (force_formula == "PARKHOMCHUK") {
-//        force = ForceFormula::PARKHOMCHUK;
-//    }
-//    ForceParas force_paras(force);
 
-    ForceParas force_paras(ptrs.ecool_ptr->force);
+    force_paras = ChooseForce(ptrs.ecool_ptr->force);   
+    
     assert(ptrs.ion_beam.get()!=nullptr && "MUST CREATE THE ION BEAM BEFORE CALCULATE ELECTRON COOLING RATE!");
     assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATE ELECTRON COOLING RATE!");
     double rx, ry, rz;
-    ecooling_rate(ecool_paras, force_paras, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring, rx, ry, rz);
+    ecooling_rate(ecool_paras, *force_paras, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring, rx, ry, rz);
     ptrs.ecool_rate.at(0) = rx;
     ptrs.ecool_rate.at(1) = ry;
     ptrs.ecool_rate.at(2) = rz;
@@ -783,15 +777,7 @@ void run_simulation(Set_ptrs &ptrs) {
             dynamic_paras->set_n_sample(n_sample);
         }
         ecool_paras = new EcoolRateParas(n_sample);
-//        std::string force_formula = ptrs.ecool_ptr->force;
-//        assert(std::find(FRICTION_FORCE_FORMULA.begin(),FRICTION_FORCE_FORMULA.end(),force_formula)!=FRICTION_FORCE_FORMULA.end()
-//                   && "UNKNOWN FRICTION FORCE FORMULA SECTION_ECOOL!");
-//        ForceFormula force;
-//        if (force_formula == "PARKHOMCHUK") {
-//            force = ForceFormula::PARKHOMCHUK;
-//        }
-//        force_paras = new ForceParas(force);
-        force_paras = new ForceParas(ptrs.ecool_ptr->force);
+        force_paras = ChooseForce(ptrs.ecool_ptr->force);
     }
 
     if(ibs) {
@@ -1385,10 +1371,9 @@ void set_ecool(string &str, Set_ecool *ecool_args){
     assert(std::find(ECOOL_ARGS.begin(),ECOOL_ARGS.end(),var)!=ECOOL_ARGS.end() && "WRONG COMMANDS IN SECTION_ECOOL!");
 
     if (var == "FORCE_FORMULA") {
-//        ecool_args->force = val;
         if (val=="PARKHOMCHUK") ecool_args->force = ForceFormula::PARKHOMCHUK;
         else if (val=="DERBENEVSKRINSKY") ecool_args->force = ForceFormula::DERBENEVSKRINSKY;
-
+        
         else assert(false&&"Friction force formula NOT exists!");
     }
     else {

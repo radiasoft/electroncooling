@@ -100,7 +100,7 @@ int both(){
     unsigned int n_sample = 10000;
     ecool_paras = new EcoolRateParas(n_sample);
     //define friction force formula
-    force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+    force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
     double rate_x, rate_y, rate_s;
     ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -134,7 +134,7 @@ int both(){
 }
 
 
-int ecool(){
+int ecool(ForceFormula ff, double *check_rates){
     JSPEC_TEST_BEGIN("Electron cooling:");
     
     //define coasting 12C6+ beam
@@ -183,19 +183,24 @@ int ecool(){
     unsigned int n_long = 100;
     EcoolRateParas ecool_rate_paras(n_tr, n_long);
 
-    ForceParas force_paras(ForceFormula::PARKHOMCHUK);
+    ForceParas *force_paras = ChooseForce(ff);
     double rate_x, rate_y, rate_s;
-    ecooling_rate(ecool_rate_paras, force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+    ecooling_rate(ecool_rate_paras, *force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;    
+
     
+//This set of test values was satisfied with the original F_const definitions 
+// in terms of k_ke in Parkhomchuk
 //    JSPEC_ASSERT_THROW(abs(rate_x + 0.00865669) < 1e-5);
 //    JSPEC_ASSERT_THROW(abs(rate_y + 0.00900383) < 1e-5);
 //    JSPEC_ASSERT_THROW(abs(rate_s + 0.0190261) < 1e-5);
 
-    JSPEC_ASSERT_THROW(abs(rate_x + 0.0087216) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_y + 0.00907129) < 1e-5);
-    JSPEC_ASSERT_THROW(abs(rate_s + 0.0191686) < 1e-5);
+//This set of test values is satisfied with the F_const defined
+// in terms of r_e in Parkhomchuk
+    JSPEC_ASSERT_THROW(abs(rate_x - check_rates[0]) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_y - check_rates[1]) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(rate_s - check_rates[2]) < 1e-5);
 
     
     std::cout<<"Force calculation"<<std::endl;
@@ -214,8 +219,8 @@ int ecool(){
     EcoolRateParas ecool_rate_paras2(n_tr, n_long);
     //ForceParas force_paras2(ForceFormula::DERBENEVSKRINSKY);
     
-    ForceParas force_paras2(ForceFormula::PARKHOMCHUK);
-    CalculateForce(ecool_rate_paras2, force_paras2, c_beam2, cooler, e_beam2, ring);
+    ForceParas *force_paras2 = ChooseForce(ff);
+    CalculateForce(ecool_rate_paras2, *force_paras2, c_beam2, cooler, e_beam2, ring);
     
     JSPEC_TEST_END();
     
@@ -441,7 +446,7 @@ int dynamicecool(){
     unsigned int n_sample = 40000;
     ecool_paras = new EcoolRateParas(n_sample);
     //define friction force formula
-    force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+    force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
     //define dynamic simulation
     dynamic_paras = new DynamicParas(60, 120, false, true);
     dynamic_paras->set_model(DynamicModel::MODEL_BEAM);
@@ -547,7 +552,7 @@ int dynamicboth(){
     unsigned int n_sample = 100000;
     ecool_paras = new EcoolRateParas(n_sample);
 //            //define friction force formula
-    force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+    force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
     double rate_x, rate_y, rate_s;
     ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
@@ -609,11 +614,29 @@ int dynamicboth(){
 
 int main(int, char**)
 {
-    dynamicibsbunched();
-    dynamicibs();
-    dynamicecool();
-    ecool();
-    ibs();    
+
+    /*
+    double check_rates[3];
+    check_rates[0] = -0.0087216;
+    check_rates[1] = -0.00907129;
+    check_rates[2] = -0.0191686;
+    ecool(ForceFormula::PARKHOMCHUK,check_rates);
+
+    check_rates[0] = -0.00503489;
+    check_rates[1] = -0.00544656;
+    check_rates[2] = -0.0122515;   
+    ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
+*/
+
+//    check_rates[0] = -1.72854;
+//    check_rates[1] = -1.72863;
+//    check_rates[2] = -2.61073;    
+//    ecool(ForceFormula::MESHKOV,check_rates);
+
+//    dynamicibsbunched();
+//    dynamicibs();
+//    dynamicecool();
+//    ibs();    
     //These both take a long time
     //dynamicboth();
    // both();

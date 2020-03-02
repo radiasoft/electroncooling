@@ -12,11 +12,14 @@ const double k_e = 1.602176565E-19;         //Elementary charge, in C
 const double k_pi = 3.1415926535897932384626;
 const double k_u = 931.49406121;            //Atomic mass unit, in MeV/c^2
 const double k_me = 0.510998928;            //electron mass, in MeV/c^2
+const double k_re = 2.8179403227E-15;		//Classical electron radius in m
+const double k_me_kg = 9.1938356e-31;        //electron mass in kg
+const double k_N_eVm = 6.242e18;            //Convert Newtons to eV/m
 ~~~~
 
 ## Global variables
 
- For intrabeam scattering (IBS) and/or electron cooling dynamic simulations, it is required to use the following variables to save configurations of respective calculations. (Will be explained in the following sections.) The declaration of them, as shown in the code block below, should be included in the main program.  For rate calculation, they can be used, but not required. 
+For intrabeam scattering (IBS) and/or electron cooling dynamic simulations, it is required to use the following variables to save configurations of respective calculations. (Will be explained in the following sections.) The declaration of them, as shown in the code block below, should be included in the main program.  For rate calculation, they can be used, but not required. 
 
 ~~~~c++
 extern IBSParas * ibs_paras;
@@ -175,11 +178,17 @@ EBeam e_beam(gamma_e, tmp_tr, tmp_long, uniform_cylinder); //Coasting electron b
 
 ## Choose the friction force formula
 
-For now, only one formula is provided for friction force calculation, which is the Parkhomchuk formula for magnetized friction force.  Other formulas would be added in future. The user needs to choose the formula to use in electron cooling rate calculation. 
+The user needs to choose the formula to use in electron cooling rate calculation. The users's choice of model can depend on several factors, and not every model is an appropriate choice for a given set of beam parameters. The selection of available models is shown below, 
 
 ~~~~c++
-//Choose the Parkhomchuk formula for friction force calculation
+//Choose the semi-empirical Parkhomchuk formula for friction force calculation
 force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+//Choose the Derbenev & Skrinsky model, appropriate if the electron beam has a Gaussian spread
+force_paras = new ForceParas(ForceFormula::DERBENEVSKRINSKY);
+//Choose the asymptotic representation 
+force_paras = new ForceParas(ForceFormula::MESHKOV);
+//Choose the non-magnetized cooling model
+force_paras = new ForceParas(ForceFormula::BUDKER);
 ~~~~
 
 
