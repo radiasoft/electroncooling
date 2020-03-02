@@ -41,6 +41,7 @@ void IBSSolver_Martini::bunch_size(const Lattice &lattice, const Beam &beam)
 
     double emit_x = beam.emit_x();
     double emit_y = beam.emit_y();
+    #pragma omp parallel for
     for(int i=0; i<n; ++i) {
         sigma_xbet[i] = sqrt(lattice.betx(i)*emit_x);
         sigma_y[i] = sqrt(lattice.bety(i)*emit_y);
@@ -65,6 +66,7 @@ void IBSSolver_Martini::abcdk(const Lattice &lattice, const Beam &beam)
     const double beta = beam.beta();
     const double gamma = beam.gamma();
     const double r = beam.r();
+    #pragma omp parallel for
     for(int i=0; i<n; ++i){
         const double betx = lattice.betx(i);
         const double alfx = lattice.alfx(i);

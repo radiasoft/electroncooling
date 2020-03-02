@@ -36,66 +36,6 @@ unsigned long int load_electrons(std::vector<double>& x, std::vector<double>& y,
 
 }
 
-////Load electrons from a given file
-//unsigned long int load_electrons(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z, std::vector<double>& vx,
-//                                 std::vector<double>& vy, std::vector<double>& vz, unsigned long int n, std::string filename,
-//                                int line_skip){
-//    std::ifstream infile;
-//    infile.open(filename.c_str());
-//    if(!infile) assert(false&&"Error: fail to load the electrons from the given file!");
-//
-//    std::string line;
-//    for(int i=0; i<line_skip; ++i) std::getline(infile, line);
-//
-//    unsigned long int n_loaded = 0;
-//    std::string val_str;
-//    double val;
-//    int j = 0;
-//    while(n_loaded<n && std::getline(infile,line)) {
-//        if (line.empty()) continue;
-//        if (infile.eof()) break;
-//        std::istringstream iss(line);
-//        for(int i=0; i<6; ++i) {
-//            iss>>val_str;
-//            try {
-//              val = std::stod(val_str.c_str());
-//            }
-//            catch (...) {
-//              val = 0;
-//            }
-//            switch (i) {
-//            case 0: {
-//                x.push_back(val);
-//                break;
-//            }
-//            case 1: {
-//                y.push_back(val);
-//                break;
-//            }
-//            case 2: {
-//                z.push_back(val);
-//                break;
-//            }
-//            case 3: {
-//                vx.push_back(val);
-//                break;
-//            }
-//            case 4: {
-//                vy.push_back(val);
-//                break;
-//            }
-//            case 5: {
-//                vz.push_back(val);
-//                break;
-//            }
-//            }
-//        }
-//        ++n_loaded;
-//        ++j;
-//    }
-//    return n_loaded;
-//}
-
 
 long int read_ascii_file(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z, std::vector<double>& vx,
                                  std::vector<double>& vy, std::vector<double>& vz, std::string filename, long int n,
@@ -253,56 +193,56 @@ long int read_binary_file(std::vector<double> &x, std::vector<double> &y, std::v
 //Find the center and the box size of the root box
 int find_root_center(double *x, double * y, double * z, const unsigned long int N, double &cx, double &cy, double &cz,
                      double &size) {
-	double max_x = x[0];
-	double max_y = y[0];
-	double max_z = z[0];
-	double min_x = x[0];
-	double min_y = y[0];
-	double min_z = z[0];
-	for(unsigned long int i=1; i<N; ++i){
-		if (max_x<x[i]) max_x = x[i];
-		if (max_y<y[i]) max_y = y[i];
-		if (max_z<z[i]) max_z = z[i];
-		if (min_x>x[i]) min_x = x[i];
-		if (min_y>y[i]) min_y = y[i];
-		if (min_z>z[i]) min_z = z[i];
-	}
-	cx = 0.5*(max_x+min_x);
-	cy = 0.5*(max_y+min_y);
-	cz = 0.5*(max_z+min_z);
-	size = max_x-min_x;
-	if (size<(max_y-min_y)) size = max_y - min_y;
-	if (size<(max_z-min_z)) size = max_z - min_z;
-	size *= (1+1e-6);
+    double max_x = x[0];
+    double max_y = y[0];
+    double max_z = z[0];
+    double min_x = x[0];
+    double min_y = y[0];
+    double min_z = z[0];
+    for(unsigned long int i=1; i<N; ++i){
+        if (max_x<x[i]) max_x = x[i];
+        if (max_y<y[i]) max_y = y[i];
+        if (max_z<z[i]) max_z = z[i];
+        if (min_x>x[i]) min_x = x[i];
+        if (min_y>y[i]) min_y = y[i];
+        if (min_z>z[i]) min_z = z[i];
+    }
+    cx = 0.5*(max_x+min_x);
+    cy = 0.5*(max_y+min_y);
+    cz = 0.5*(max_z+min_z);
+    size = max_x-min_x;
+    if (size<(max_y-min_y)) size = max_y - min_y;
+    if (size<(max_z-min_z)) size = max_z - min_z;
+    size *= (1+1e-6);
 
-	return 0;
+    return 0;
 }
 
 int find_root_center(std::vector<double>& x, std::vector<double>&  y, std::vector<double>&  z, const unsigned long int n,
                      double &cx, double &cy, double &cz, double &size) {
-	double max_x = x[0];
-	double max_y = y[0];
-	double max_z = z[0];
-	double min_x = x[0];
-	double min_y = y[0];
-	double min_z = z[0];
-	for(unsigned long int i=1; i<n; ++i){
-		if (max_x<x[i]) max_x = x[i];
-		if (max_y<y[i]) max_y = y[i];
-		if (max_z<z[i]) max_z = z[i];
-		if (min_x>x[i]) min_x = x[i];
-		if (min_y>y[i]) min_y = y[i];
-		if (min_z>z[i]) min_z = z[i];
-	}
-	cx = 0.5*(max_x+min_x);
-	cy = 0.5*(max_y+min_y);
-	cz = 0.5*(max_z+min_z);
-	size = max_x-min_x;
-	if (size<(max_y-min_y)) size = max_y - min_y;
-	if (size<(max_z-min_z)) size = max_z - min_z;
-	size *= (1+1e-6);
+    double max_x = x[0];
+    double max_y = y[0];
+    double max_z = z[0];
+    double min_x = x[0];
+    double min_y = y[0];
+    double min_z = z[0];
+    for(unsigned long int i=1; i<n; ++i){
+        if (max_x<x[i]) max_x = x[i];
+        if (max_y<y[i]) max_y = y[i];
+        if (max_z<z[i]) max_z = z[i];
+        if (min_x>x[i]) min_x = x[i];
+        if (min_y>y[i]) min_y = y[i];
+        if (min_z>z[i]) min_z = z[i];
+    }
+    cx = 0.5*(max_x+min_x);
+    cy = 0.5*(max_y+min_y);
+    cz = 0.5*(max_z+min_z);
+    size = max_x-min_x;
+    if (size<(max_y-min_y)) size = max_y - min_y;
+    if (size<(max_z-min_z)) size = max_z - min_z;
+    size *= (1+1e-6);
 
-	return 0;
+    return 0;
 }
 
 
@@ -310,173 +250,173 @@ int find_root_center(std::vector<double>& x, std::vector<double>&  y, std::vecto
 int create_e_tree(double * x, double * y, double * z, const unsigned long int n, const unsigned int s, vector<Box> &tree,
                 unsigned long int * list) {
 
-	Box empty_box;
-	double cx, cy, cz, size;	//the center and the size of a box
+    Box empty_box;
+    double cx, cy, cz, size;//the center and the size of a box
 
-	//create the root box
-	tree.push_back(empty_box);
-	find_root_center(x, y, z, n, cx, cy, cz, size);
-	tree[0].center[0] = cx;
-	tree[0].center[1] = cy;
-	tree[0].center[2] = cz;
-	tree[0].box_size = size;
-	tree[0].n_ptcl = n;
+    //create the root box
+    tree.push_back(empty_box);
+    find_root_center(x, y, z, n, cx, cy, cz, size);
+    tree[0].center[0] = cx;
+    tree[0].center[1] = cy;
+    tree[0].center[2] = cz;
+    tree[0].box_size = size;
+    tree[0].n_ptcl = n;
 
-	//prepare for the particle list
-	for(unsigned long int i=0; i<n; ++i) {
-		list[i] = i+1;
-	}
-	unsigned long int tmp_idx[8] = {n, n, n, n, n, n, n, n};
-	for (unsigned long int i=0; i!=tree.size();++i) {
-		if (tree[i].n_ptcl>s) {
-			//split the box
-			//go through all the particles in the box
-			unsigned long int idx=tree[i].first_ptcl;
-			while (idx!=n) {	//when idx==n, reached the end of the particle list
-				int nx = (x[idx]-tree[i].center[0]>0)?1:0;
-				int ny = (y[idx]-tree[i].center[1]>0)?1:0;
-				int nz = (z[idx]-tree[i].center[2]>0)?1:0;
+    //prepare for the particle list
+    for(unsigned long int i=0; i<n; ++i) {
+        list[i] = i+1;
+    }
+    unsigned long int tmp_idx[8] = {n, n, n, n, n, n, n, n};
+    for (unsigned long int i=0; i!=tree.size();++i) {
+        if (tree[i].n_ptcl>s) {
+            //split the box
+            //go through all the particles in the box
+            unsigned long int idx=tree[i].first_ptcl;
+            while (idx!=n) {//when idx==n, reached the end of the particle list
+                int nx = (x[idx]-tree[i].center[0]>0)?1:0;
+                int ny = (y[idx]-tree[i].center[1]>0)?1:0;
+                int nz = (z[idx]-tree[i].center[2]>0)?1:0;
 
-				int idx_cld = 4*nx+2*ny+nz;
-				if (tree[i].child[idx_cld]>0) {	//child box has created.
-					//update the child box
-					unsigned long int pos_cld = tree[i].child[idx_cld];
-					tree[pos_cld].n_ptcl += 1;
-					//udpate the linked list of the particles
-					list[tmp_idx[idx_cld]] = idx;
-					tmp_idx[idx_cld] = idx;
-				}
-				else{	//child box has NOT created.
-					//create the child box
-					unsigned long int pos_cld = tree.size();
-					tree.push_back(empty_box);
-					tree[pos_cld].parent = i;
-					tree[pos_cld].box_size = 0.5*tree[i].box_size;
-					tree[pos_cld].first_ptcl = idx;
-					tree[pos_cld].n_ptcl +=1;
+                int idx_cld = 4*nx+2*ny+nz;
+                if (tree[i].child[idx_cld]>0) {	//child box has created.
+                    //update the child box
+                    unsigned long int pos_cld = tree[i].child[idx_cld];
+                    tree[pos_cld].n_ptcl += 1;
+                    //udpate the linked list of the particles
+                    list[tmp_idx[idx_cld]] = idx;
+                    tmp_idx[idx_cld] = idx;
+                }
+                else{//child box has NOT created.
+                    //create the child box
+                    unsigned long int pos_cld = tree.size();
+                    tree.push_back(empty_box);
+                    tree[pos_cld].parent = i;
+                    tree[pos_cld].box_size = 0.5*tree[i].box_size;
+                    tree[pos_cld].first_ptcl = idx;
+                    tree[pos_cld].n_ptcl +=1;
 
-					if (nx==0) nx=-1;
-					if (ny==0) ny=-1;
-					if (nz==0) nz=-1;
-					tree[pos_cld].center[0] = tree[i].center[0]+0.5*nx*tree[pos_cld].box_size;
-					tree[pos_cld].center[1] = tree[i].center[1]+0.5*ny*tree[pos_cld].box_size;
-					tree[pos_cld].center[2] = tree[i].center[2]+0.5*nz*tree[pos_cld].box_size;
+                    if (nx==0) nx=-1;
+                    if (ny==0) ny=-1;
+                    if (nz==0) nz=-1;
+                    tree[pos_cld].center[0] = tree[i].center[0]+0.5*nx*tree[pos_cld].box_size;
+                    tree[pos_cld].center[1] = tree[i].center[1]+0.5*ny*tree[pos_cld].box_size;
+                    tree[pos_cld].center[2] = tree[i].center[2]+0.5*nz*tree[pos_cld].box_size;
 
-					tmp_idx[idx_cld] = idx;	//record the last particle in the box
+                    tmp_idx[idx_cld] = idx;	//record the last particle in the box
 
-					//update the parent box
-					tree[i].child[idx_cld] = pos_cld;
-					tree[i].n_child += 1;
-					tree[i].first_ptcl = n;
-				}
-				idx = list[idx];
-			}
-			tree[i].n_ptcl = 0;
-			for (int i=0; i<8; ++i) {
-				if (tmp_idx[i]<n){
-					list[tmp_idx[i]] = n;
-					tmp_idx[i] = n;
-				}
-			}
-		}
-	}
-//	//Make sure the index of the child boxes stored in the first n_child elements of the child array.
-//	for(unsigned long int i=0; i!=tree.size(); ++i) {
-//		if (tree[i].n_child>0) {
-//			int k=7;
-//			for(int j=0; j<tree[i].n_child; ++j) {
-//				if (tree[i].child[j]==0) {
-//					for(;k>j;--k){
-//						if (tree[i].child[k]>0) {
-//							std::swap(tree[i].child[j], tree[i].child[k]);
-//							break;
-//						}
-//					}
-//				}
-//			}
-//		}
-//	}
-	return 0;
+                    //update the parent box
+                    tree[i].child[idx_cld] = pos_cld;
+                    tree[i].n_child += 1;
+                    tree[i].first_ptcl = n;
+                }
+                idx = list[idx];
+            }
+            tree[i].n_ptcl = 0;
+            for (int i=0; i<8; ++i) {
+                if (tmp_idx[i]<n){
+                    list[tmp_idx[i]] = n;
+                    tmp_idx[i] = n;
+                }
+            }
+        }
+    }
+//Make sure the index of the child boxes stored in the first n_child elements of the child array.
+//    for(unsigned long int i=0; i!=tree.size(); ++i) {
+//        if (tree[i].n_child>0) {
+//            int k=7;
+//                for(int j=0; j<tree[i].n_child; ++j) {
+//                    if (tree[i].child[j]==0) {
+//                        for(;k>j;--k){
+//                            if (tree[i].child[k]>0) {
+//                                std::swap(tree[i].child[j], tree[i].child[k]);
+//                                break;
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+    return 0;
 }
 
 //Create the hierarchical tree structure of the boxes
 int create_e_tree(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z, const unsigned long int n,
                   const unsigned int s, vector<Box> &tree, std::vector<unsigned long int>& list) {
 
-	Box empty_box;
-	double cx, cy, cz, size;	//the center and the size of a box
+    Box empty_box;
+    double cx, cy, cz, size; //the center and the size of a box
 
-	//create the root box
-	tree.push_back(empty_box);
-	find_root_center(x, y, z, n, cx, cy, cz, size);
-	tree[0].center[0] = cx;
-	tree[0].center[1] = cy;
-	tree[0].center[2] = cz;
-	tree[0].box_size = size;
-	tree[0].n_ptcl = n;
+    //create the root box
+    tree.push_back(empty_box);
+    find_root_center(x, y, z, n, cx, cy, cz, size);
+    tree[0].center[0] = cx;
+    tree[0].center[1] = cy;
+    tree[0].center[2] = cz;
+    tree[0].box_size = size;
+    tree[0].n_ptcl = n;
 
-	//prepare for the particle list
-	list.clear();
-	list.reserve(n);
-	for(unsigned long int i=0; i<n; ++i) {
+    //prepare for the particle list
+    list.clear();
+    list.reserve(n);
+    for(unsigned long int i=0; i<n; ++i) {
         list.push_back(i+1);
-//		list[i] = i+1;
-	}
-	unsigned long int tmp_idx[8] = {n, n, n, n, n, n, n, n};
-	for (unsigned long int i=0; i!=tree.size();++i) {
-		if (tree[i].n_ptcl>s) {
-			//split the box
-			//go through all the particles in the box
-			unsigned long int idx=tree[i].first_ptcl;
-			while (idx!=n) {	//when idx==n, reached the end of the particle list
-				int nx = (x.at(idx)-tree[i].center[0]>0)?1:0;
-				int ny = (y.at(idx)-tree[i].center[1]>0)?1:0;
-				int nz = (z.at(idx)-tree[i].center[2]>0)?1:0;
+            //list[i] = i+1;
+    }
+    unsigned long int tmp_idx[8] = {n, n, n, n, n, n, n, n};
+    for (unsigned long int i=0; i!=tree.size();++i) {
+        if (tree[i].n_ptcl>s) {
+            //split the box
+            //go through all the particles in the box
+            unsigned long int idx=tree[i].first_ptcl;
+            while (idx!=n) {	//when idx==n, reached the end of the particle list
+                int nx = (x.at(idx)-tree[i].center[0]>0)?1:0;
+                int ny = (y.at(idx)-tree[i].center[1]>0)?1:0;
+                int nz = (z.at(idx)-tree[i].center[2]>0)?1:0;
 
-				int idx_cld = 4*nx+2*ny+nz;
-				if (tree[i].child[idx_cld]>0) {	//child box has created.
-					//update the child box
-					unsigned long int pos_cld = tree[i].child[idx_cld];
-					tree[pos_cld].n_ptcl += 1;
-					//udpate the linked list of the particles
-					list.at(tmp_idx[idx_cld]) = idx;
-					tmp_idx[idx_cld] = idx;
-				}
-				else{	//child box has NOT created.
-					//create the child box
-					unsigned long int pos_cld = tree.size();
-					tree.push_back(empty_box);
-					tree[pos_cld].parent = i;
-					tree[pos_cld].box_size = 0.5*tree[i].box_size;
-					tree[pos_cld].first_ptcl = idx;
-					tree[pos_cld].n_ptcl +=1;
+                int idx_cld = 4*nx+2*ny+nz;
+                if (tree[i].child[idx_cld]>0) {	//child box has created.
+                    //update the child box
+                    unsigned long int pos_cld = tree[i].child[idx_cld];
+                    tree[pos_cld].n_ptcl += 1;
+                    //udpate the linked list of the particles
+                    list.at(tmp_idx[idx_cld]) = idx;
+                    tmp_idx[idx_cld] = idx;
+                }
+                else{//child box has NOT created.
+                    //create the child box
+                    unsigned long int pos_cld = tree.size();
+                    tree.push_back(empty_box);
+                    tree[pos_cld].parent = i;
+                    tree[pos_cld].box_size = 0.5*tree[i].box_size;
+                    tree[pos_cld].first_ptcl = idx;
+                    tree[pos_cld].n_ptcl +=1;
 
-					if (nx==0) nx=-1;
-					if (ny==0) ny=-1;
-					if (nz==0) nz=-1;
-					tree[pos_cld].center[0] = tree[i].center[0]+0.5*nx*tree[pos_cld].box_size;
-					tree[pos_cld].center[1] = tree[i].center[1]+0.5*ny*tree[pos_cld].box_size;
-					tree[pos_cld].center[2] = tree[i].center[2]+0.5*nz*tree[pos_cld].box_size;
+                    if (nx==0) nx=-1;
+                    if (ny==0) ny=-1;
+                    if (nz==0) nz=-1;
+                    tree[pos_cld].center[0] = tree[i].center[0]+0.5*nx*tree[pos_cld].box_size;
+                    tree[pos_cld].center[1] = tree[i].center[1]+0.5*ny*tree[pos_cld].box_size;
+                    tree[pos_cld].center[2] = tree[i].center[2]+0.5*nz*tree[pos_cld].box_size;
 
-					tmp_idx[idx_cld] = idx;	//record the last particle in the box
+                    tmp_idx[idx_cld] = idx;	//record the last particle in the box
 
-					//update the parent box
-					tree[i].child[idx_cld] = pos_cld;
-					tree[i].n_child += 1;
-					tree[i].first_ptcl = n;
-				}
-				idx = list.at(idx);
-			}
-			tree[i].n_ptcl = 0;
-			for (int i=0; i<8; ++i) {
-				if (tmp_idx[i]<n){
-					list.at(tmp_idx[i]) = n;
-					tmp_idx[i] = n;
-				}
-			}
-		}
-	}
-	return 0;
+                    //update the parent box
+                    tree[i].child[idx_cld] = pos_cld;
+                    tree[i].n_child += 1;
+                    tree[i].first_ptcl = n;
+                }
+                idx = list.at(idx);
+            }
+            tree[i].n_ptcl = 0;
+            for (int i=0; i<8; ++i) {
+                if (tmp_idx[i]<n){
+                    list.at(tmp_idx[i]) = n;
+                    tmp_idx[i] = n;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 
@@ -497,10 +437,10 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned long int 
 //	tree[0].box_size = size;
 //	tree[0].n_ptcl = n;
 
-	//prepare for the particle list
-	unsigned long int idx_in = n;
-	idx_out= n;
-	double cx, cy, cz, half_box;
+    //prepare for the particle list
+    unsigned long int idx_in = n;
+    idx_out= n;
+    double cx, cy, cz, half_box;
     cx = tree[0].center[0];
     cy = tree[0].center[1];
     cz = tree[0].center[2];
@@ -508,7 +448,7 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned long int 
     unsigned long int ptr_in = n;
     unsigned long int ptr_out = n;
     unsigned long int cnt_in = 0;
-	for(unsigned long int i=0; i<n; ++i) {
+    for(unsigned long int i=0; i<n; ++i) {
         bool x_in = fabs(x[i]-cx)<=half_box;
         bool y_in = fabs(y[i]-cy)<=half_box;
         bool z_in = fabs(z[i]-cz)<=half_box;
@@ -525,7 +465,7 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned long int 
                 list[i] = n;
             }
         }
-        else {                  //ion particle is outside the box
+        else { //ion particle is outside the box
             if(idx_out == n) idx_out = i;
             if(ptr_out == n) {
                 ptr_out = i;
@@ -537,11 +477,11 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned long int 
                 list[i] = n;
             }
         }
-	}
-	tree[0].first_ion = idx_in;
-	tree[0].n_ion = cnt_in;
+    }
+    tree[0].first_ion = idx_in;
+    tree[0].n_ion = cnt_in;
     unsigned long int tmp_idx[8] = {n, n, n, n, n, n, n, n};
-	for (unsigned long int i=0; i!=tree.size();++i) {
+    for (unsigned long int i=0; i!=tree.size();++i) {
         if(tree[i].n_child>0) {
             for(auto cld_id : tree[i].child) {
                 if (cld_id>0) tree[cld_id].first_ion = n;
@@ -550,73 +490,73 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned long int 
             unsigned int n_ion = tree[i].n_ion;
             while (n_ion>0&&idx!=n) { //when idx==n, reached the end of the ion list
                 int nx = (x[idx]-tree[i].center[0]>0)?1:0;
-				int ny = (y[idx]-tree[i].center[1]>0)?1:0;
-				int nz = (z[idx]-tree[i].center[2]>0)?1:0;
+                int ny = (y[idx]-tree[i].center[1]>0)?1:0;
+                int nz = (z[idx]-tree[i].center[2]>0)?1:0;
 
-				int idx_cld = 4*nx+2*ny+nz;
-				if (tree[i].child[idx_cld]>0) {	//child box has created --> ion inside electron bunch.
-					//update the child box
-					unsigned long int pos_cld = tree[i].child[idx_cld];
-					tree[pos_cld].n_ion += 1;
-					//udpate the linked list of the particles
-					if(tmp_idx[idx_cld] == n) {
+                int idx_cld = 4*nx+2*ny+nz;
+                if (tree[i].child[idx_cld]>0) {	//child box has created --> ion inside electron bunch.
+                    //update the child box
+                    unsigned long int pos_cld = tree[i].child[idx_cld];
+                    tree[pos_cld].n_ion += 1;
+                    //udpate the linked list of the particles
+                    if(tmp_idx[idx_cld] == n) {
                         tmp_idx[idx_cld] = idx;
                         tree[pos_cld].first_ion = idx;
                         tree[i].first_ion = n;
-					}
-					else {
+                    }
+                    else {
                         list[tmp_idx[idx_cld]] = idx;
                         tmp_idx[idx_cld] = idx;
-					}
-				}
-				else{	//child box has NOT created --> ion is outside electron bunch.
-				    if(idx_out == n) idx_out = idx;
-				    if(ptr_out == n) {
+                    }
+                }
+                else{//child box has NOT created --> ion is outside electron bunch.
+                    if(idx_out == n) idx_out = idx;
+                    if(ptr_out == n) {
                         ptr_out = idx;
                     }
                     else {
                         list[ptr_out] = idx;
                         ptr_out = idx;
                     }
-				}
-				idx = list[idx];
+                }
+                idx = list[idx];
             }
             tree[i].n_ion = 0;
-			for (int i=0; i<8; ++i) {
-				if (tmp_idx[i]<n){
-					list[tmp_idx[i]] = n;
-					tmp_idx[i] = n;
-				}
-			}
+            for (int i=0; i<8; ++i) {
+                if (tmp_idx[i]<n){
+                    list[tmp_idx[i]] = n;
+                    tmp_idx[i] = n;
+                }
+            }
         }
-	}
-	list[ptr_out] = n;
+    }
+    list[ptr_out] = n;
 
-//	//Make sure the index of the child boxes stored in the first n_child elements of the child array.
-//	for(unsigned long int i=0; i!=tree.size(); ++i) {
-//		if (tree[i].n_child>0) {
-//			int k=7;
-//			for(int j=0; j<tree[i].n_child; ++j) {
-//				if (tree[i].child[j]==0) {
-//					for(;k>j;--k){
-//						if (tree[i].child[k]>0) {
-//							std::swap(tree[i].child[j], tree[i].child[k]);
-//							break;
-//						}
-//					}
-//				}
-//			}
-//		}
-//	}
-	return 0;
+    //Make sure the index of the child boxes stored in the first n_child elements of the child array.
+//    for(unsigned long int i=0; i!=tree.size(); ++i) {
+//        if (tree[i].n_child>0) {
+//            int k=7;
+//            for(int j=0; j<tree[i].n_child; ++j) {
+//                if (tree[i].child[j]==0) {
+//                    for(;k>j;--k){
+//                        if (tree[i].child[k]>0) {
+//                            std::swap(tree[i].child[j], tree[i].child[k]);
+//                            break;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+    return 0;
 }
 
 int create_ion_tree(double * x, double * y, double * z, const unsigned int n, vector<Box> &tree,
                 std::vector<unsigned int>& list, unsigned int &idx_out) {
-	//prepare for the particle list
-	unsigned long int idx_in = n;
-	idx_out= n;
-	double cx, cy, cz, half_box;
+    //prepare for the particle list
+    unsigned long int idx_in = n;
+    idx_out= n;
+    double cx, cy, cz, half_box;
     cx = tree[0].center[0];
     cy = tree[0].center[1];
     cz = tree[0].center[2];
@@ -625,7 +565,8 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned int n, ve
     unsigned long int ptr_out = n;
     unsigned long int cnt_in = 0;
     list.resize(n, 0);
-	for(unsigned long int i=0; i<n; ++i) {
+
+    for(unsigned long int i=0; i<n; ++i) {
         bool x_in = fabs(x[i]-cx)<=half_box;
         bool y_in = fabs(y[i]-cy)<=half_box;
         bool z_in = fabs(z[i]-cz)<=half_box;
@@ -654,11 +595,13 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned int n, ve
                 list.at(i) = n;
             }
         }
-	}
-	tree[0].first_ion = idx_in;
-	tree[0].n_ion = cnt_in;
+    }
+    tree[0].first_ion = idx_in;
+    tree[0].n_ion = cnt_in;
     unsigned long int tmp_idx[8] = {n, n, n, n, n, n, n, n};
-	for (unsigned long int i=0; i!=tree.size();++i) {
+//    #pragma omp parallel for //TODO: Why is this crashing with omp parallel?
+//    for (unsigned long int i=0; i<tree.size();++i) {
+    for (unsigned long int i=0; i!=tree.size();++i) {
         if(tree[i].n_child>0) {
             for(auto cld_id : tree[i].child) {
                 if (cld_id>0) tree[cld_id].first_ion = n;
@@ -667,48 +610,48 @@ int create_ion_tree(double * x, double * y, double * z, const unsigned int n, ve
             unsigned int n_ion = tree[i].n_ion;
             while (n_ion>0&&idx!=n) { //when idx==n, reached the end of the ion list
                 int nx = (x[idx]-tree[i].center[0]>0)?1:0;
-				int ny = (y[idx]-tree[i].center[1]>0)?1:0;
-				int nz = (z[idx]-tree[i].center[2]>0)?1:0;
+                int ny = (y[idx]-tree[i].center[1]>0)?1:0;
+                int nz = (z[idx]-tree[i].center[2]>0)?1:0;
 
-				int idx_cld = 4*nx+2*ny+nz;
-				if (tree[i].child[idx_cld]>0) {	//child box has created --> ion inside electron bunch.
-					//update the child box
-					unsigned long int pos_cld = tree[i].child[idx_cld];
-					tree[pos_cld].n_ion += 1;
-					//udpate the linked list of the particles
-					if(tmp_idx[idx_cld] == n) {
+                int idx_cld = 4*nx+2*ny+nz;
+                if (tree[i].child[idx_cld]>0) {	//child box has created --> ion inside electron bunch.
+                    //update the child box
+                    unsigned long int pos_cld = tree[i].child[idx_cld];
+                    tree[pos_cld].n_ion += 1;
+                    //udpate the linked list of the particles
+                    if(tmp_idx[idx_cld] == n) {
                         tmp_idx[idx_cld] = idx;
                         tree[pos_cld].first_ion = idx;
                         tree[i].first_ion = n;
-					}
-					else {
+                    }
+                    else {
                         list.at(tmp_idx[idx_cld]) = idx;
                         tmp_idx[idx_cld] = idx;
-					}
-				}
-				else{	//child box has NOT created --> ion is outside electron bunch.
-				    if(idx_out == n) idx_out = idx;
-				    if(ptr_out == n) {
+                    }
+                }
+                else{	//child box has NOT created --> ion is outside electron bunch.
+                    if(idx_out == n) idx_out = idx;
+                    if(ptr_out == n) {
                         ptr_out = idx;
                     }
                     else {
                         list.at(ptr_out) = idx;
                         ptr_out = idx;
                     }
-				}
-				idx = list[idx];
+                }
+                idx = list[idx];
             }
             tree[i].n_ion = 0;
-			for (int i=0; i<8; ++i) {
-				if (tmp_idx[i]<n){
-					list.at(tmp_idx[i]) = n;
-					tmp_idx[i] = n;
-				}
-			}
+            for (int i=0; i<8; ++i) {
+                if (tmp_idx[i]<n){
+                    list.at(tmp_idx[i]) = n;
+                    tmp_idx[i] = n;
+                }
+            }
         }
-	}
-	list.at(ptr_out) = n;
-	return 0;
+    }
+    list.at(ptr_out) = n;
+    return 0;
 }
 
 
@@ -926,30 +869,30 @@ void density(vector<Box> &tree, std::vector<unsigned long int>& list_e, std::vec
 
 //output a box for debug
 std::ostream& operator<<(std::ostream& os, Box& box){
-	os<<"Box center: ";
-	for(int i=0; i<3; ++i) os<<box.center[i]<<' ';
-	os<<endl;
-	os<<"Box size: " << box.box_size <<endl;
-	os<<"Parent box: "<< box.parent <<endl;
-	os<<"Number of child boxes: "<< box.n_child << endl;
-	os<<"Child boxes: ";
-	for(int i=0; i<8; ++i) {
-		if(box.child[i]>0) os<< box.child[i] <<' ';
-	}
-//	for(int i=0; i<box.n_child; ++i) {
-//		os<< box.child[i] <<' ';
-//	}
-	os << endl;
-	os<<"Particles: " << box.n_ptcl <<' ' << box.first_ptcl<<endl;
-	os<<"Ions: " << box.n_ion <<' ' << box.first_ion<<endl;
-	return os;
+    os<<"Box center: ";
+    for(int i=0; i<3; ++i) os<<box.center[i]<<' ';
+    os<<endl;
+    os<<"Box size: " << box.box_size <<endl;
+    os<<"Parent box: "<< box.parent <<endl;
+    os<<"Number of child boxes: "<< box.n_child << endl;
+    os<<"Child boxes: ";
+    for(int i=0; i<8; ++i) {
+        if(box.child[i]>0) os<< box.child[i] <<' ';
+    }
+//for(int i=0; i<box.n_child; ++i) {
+//os<< box.child[i] <<' ';
+//}
+    os << endl;
+    os<<"Particles: " << box.n_ptcl <<' ' << box.first_ptcl<<endl;
+    os<<"Ions: " << box.n_ion <<' ' << box.first_ion<<endl;
+    return os;
 }
 
 //output colleague for debug
 std::ostream& operator<<(std::ostream& os, Colleague& clg){
-	os<<clg.clg[0]<<' ';
-	for(int i=1; clg.clg[i]>0; ++i) os<<clg.clg[i]<<' ';
-	os<<endl;
-	return os;
+    os<<clg.clg[0]<<' ';
+    for(int i=1; clg.clg[i]>0; ++i) os<<clg.clg[i]<<' ';
+    os<<endl;
+    return os;
 }
 

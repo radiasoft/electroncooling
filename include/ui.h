@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "beam.h"
+#include "beamshape.h"
 #include "cooler.h"
 #include "dynamic.h"
 #include "ecooling.h"
@@ -156,7 +157,7 @@ class Set_ptrs{
      std::unique_ptr<Ring> ring = nullptr;
      std::unique_ptr<Set_cooler> cooler_ptr = nullptr;
      std::unique_ptr<Cooler> cooler = nullptr;
-     std::unique_ptr<EBeamShape> e_beam_shape = nullptr;
+     std::unique_ptr<BeamShape> e_beam_shape = nullptr;
      std::unique_ptr<Set_e_beam> e_beam_ptr = nullptr;
      std::unique_ptr<EBeam> e_beam = nullptr;
      std::unique_ptr<Set_ecool> ecool_ptr = nullptr;
