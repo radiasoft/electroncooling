@@ -325,6 +325,12 @@ void testForce(){
   JSPEC_ASSERT_THROW( abs(slope) < 1e-28 );
   
     
+  SetupModel(ForceFormula::MESHKOV);
+  data_path = CMAKE_SOURCE_DIR + std::string("/data/dumpMesh.txt");
+  test_path = CMAKE_SOURCE_DIR + std::string("/build/tests/Meshkov.txt");
+  slope = CompareOutput(data_path,test_path);
+  JSPEC_ASSERT_THROW( abs(slope) < 1e-27 );
+    
   JSPEC_TEST_END();
 
   //TODO: Clean up after our test, delete the test files  
