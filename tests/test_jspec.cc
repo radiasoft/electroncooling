@@ -628,9 +628,9 @@ int main(int, char**)
     ecool(ForceFormula::DERBENEVSKRINSKY,check_rates);
 
 
-    check_rates[0] = -0.164163;//-1.72854;
-    check_rates[1] = -0.163062;//-1.72863;
-    check_rates[2] = -0.277927;//-2.61073;    
+    check_rates[0] = -0.168594;//-1.72854;
+    check_rates[1] = -0.167933;//-1.72863;
+    check_rates[2] = -0.286098;//-2.61073;    
     ecool(ForceFormula::MESHKOV,check_rates);
 
 //    dynamicibsbunched();

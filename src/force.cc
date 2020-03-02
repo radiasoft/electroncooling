@@ -252,9 +252,9 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
   //std::cout<<"Meshkov: L_M="<<L_M<<" L_A="<<L_A<<" L_F="<<L_F<<std::endl;
 
   //If it's < 0, the interaction is absent
-  if( L_M < 1. ) L_M = 0.0; //This controls the low ion V_long rise, ~10-20
-  if( L_A < 1. ) L_A = 0.0; 
-  if( L_F < 1. ) L_F = 0.0;  //This one is responsible for discontinuity at high ion V_long ~5.5
+  if( L_M < 0. ) L_M = 0.0; //This controls the low ion V_long rise, ~10-20
+  if( L_A < 0. ) L_A = 0.0; 
+  if( L_F < 0. ) L_F = 0.0;  //This one is responsible for discontinuity at high ion V_long ~5.5
     
   //Define the regions of the ion velocity domains
   double result_trans,result_long;
