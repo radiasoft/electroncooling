@@ -119,7 +119,6 @@ void Force_Parkhomchuk::force(double v_tr, double v_long, double d_perp_e, doubl
 double Force_DS::trans_integrand(double alpha,void *params){
     //Using Pestrikov's trick to change the integration variable
 
-    //struct int_info *p = (struct int_info *)params;    
     int_info *p = (struct int_info *)params;    
     double y = p->V_long / p->width;
     double z = p->V_trans / p->width;
@@ -163,12 +162,11 @@ void Force_DS::EvalIntegral(double (*func)(double, void*), int_info &params,doub
     //In D&S/Pestrikov, all integrals have the same limits, so we can hard-code it here
     int status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-6,space_size,1,w,&result,&error);
   
-    if(status == GSL_EDIVERGE){ //Try again a more time-consuming way
+    if(status == GSL_EDIVERGE){ //If we didn't get divergene quickly, try again in a more time-consuming way
         status = gsl_integration_qag(&F, -k_pi/2, k_pi/2, 1, 1e-10,space_size,1,w,&result,&error);
     }
 
     gsl_integration_workspace_free(w);
-  
 }
 
 //This function is used for calculating the forces on single particles or arrays of particles
@@ -179,11 +177,17 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
   double rho_L      = k_me_kg * d_perp_e / ( magnetic_field * k_e ); //SI units, in meters
     
   //Calculate rho_max as in the Parkhomchuk model
-  double v_eff      = sqrt(v_tr*v_tr + v_long*v_long);
-  double rho_max = max_impact_factor(v_eff,charge_number,density_e,time_cooler);
+  double v_mag      = sqrt(v_tr*v_tr + v_long*v_long);
+  double rho_max = max_impact_factor(v_mag,charge_number,density_e,time_cooler);
   double lm = log(rho_max / rho_L); //Coulomb Log ~ 5
 
-  if(lm < 0.) lm = 0.0;
+  //Save ourselves some cycles
+  if(lm < 0. || density_e <= 0.0){
+      //lm = 0.0;
+      force_result_long = 0.0;
+      force_result_tr = 0.0;
+      return;
+  }
     
   int_info params;
   params.V_trans = v_tr; //Ion velocity components
@@ -201,7 +205,6 @@ void Force_DS::force(double v_tr, double v_long, double d_perp_e, double d_paral
 
   force_result_long = f_const_ * density_e * charge_number*charge_number * lm * result_long;
   force_result_long /= (d_paral_e*d_paral_e);        
-          
 }
 
 void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
@@ -212,11 +215,6 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
   double wp_const = 4 * k_pi * k_c*k_c * k_re;
   double wp       = sqrt(wp_const * density_e);
     
-  //A fudge factor to smooth the friction force shape. Using the
-  // "Classical" default definition here from the BETACOOL documentation
-  double k = 2;
-
-  //double rho_min_const = charge_number * k_e*k_e * k_c*k_c / (k_me * 1e6); //CGS units
   double rho_min_const = charge_number * k_re * k_c*k_c; //SI units
     
   double v2      = v_tr*v_tr + v_long*v_long;
@@ -234,18 +232,20 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
   
   double rho_max = max_impact_factor(sqrt(v2 + d_paral_e*d_paral_e),charge_number,density_e,time_cooler);
 
-  k = 2;
+  //k_ is a fudge factor to smooth the friction force shape. Using the
+  // "Classical" default definition here from the BETACOOL documentation
+
   //Coulomb Logarithms
-  double L_M = log(rho_max / (k*rho_L)); //there's a typo in the BETACOOL guide, the numerator here is rho_max
-  double L_A = log((k*rho_L) / rho_F);
+  double L_M = log(rho_max / (k_*rho_L)); //there's a typo in the BETACOOL guide, the numerator here is rho_max
+  double L_A = log((k_*rho_L) / rho_F);
   double L_F = log(rho_F / rho_min);
 
   //std::cout<<"Meshkov: L_M="<<L_M<<" L_A="<<L_A<<" L_F="<<L_F<<std::endl;
 
   //If it's < 0, the interaction is absent
-  if( L_M < 1. ) L_M = 0.0; //This controls the low ion V_long rise, ~10-20
-  if( L_A < 1. ) L_A = 0.0; 
-  if( L_F < 1. ) L_F = 0.0;  //This one is responsible for discontinuity at high ion V_long ~5.5
+  if( L_M < 0. ) L_M = 0.0; //This controls the low ion V_long rise, ~10-20
+  if( L_A < 0. ) L_A = 0.0; 
+  if( L_F < 0. ) L_F = 0.0;  //This one is responsible for discontinuity at high ion V_long ~5.5
     
   //Define the regions of the ion velocity domains
   double result_trans,result_long;
@@ -279,8 +279,6 @@ void Force_Meshkov::force(double v_tr, double v_long, double d_perp_e, double d_
         }
   } 
         
-  //The factor of pi/2 comes from the difference between the constants
-  // used in Parkhomchuk with the constants used in the Meshkov representation
   force_result_trans = f_const_ * charge_number*charge_number * density_e * result_trans * v_tr;
   force_result_long = f_const_ * charge_number*charge_number * density_e * result_long * v_long;
 }
@@ -289,32 +287,42 @@ void Force_Budker::force(double v_tr, double v_long, double d_perp_e, double d_p
                          int charge_number,double density_e,double time_cooler, double magnetic_field, 
                          double &force_result_trans, double &force_result_long){
 
-    //Here we are assuming a maxwellian distribution, d_paral_e = d_perp_e
-    // and ignoring magnetic field
+    //This is a hook for future development of arbitrary distributions.
+    // In that case, there will be a more complicated integral to solve 
+    if(true){
+        //Here we are assuming a maxwellian distribution, d_paral_e = d_perp_e
+        // and ignoring magnetic field
+        
+        double delta_e = d_paral_e; 
+        double v2 = v_tr*v_tr + v_long*v_long;
+        double v_mag = sqrt(v2);
 
-    double delta_e = d_paral_e; 
-    double v2 = v_tr*v_tr + v_long*v_long;
-    double v_mag = sqrt(v_tr*v_tr + v_long*v_long);
+        //Save some cycles
+        if(density_e>0.0 && v2 >0.0){
+            double rho_max = max_impact_factor(v_mag,charge_number,density_e,time_cooler);
+            double rho_min_const = charge_number * k_re * k_c*k_c; //Gives LC ~ 9. SI units, in m
+            double rho_min = rho_min_const / (v2 + d_paral_e*d_paral_e + d_perp_e*d_perp_e);
 
-    double rho_max = max_impact_factor(v_mag,charge_number,density_e,time_cooler);
-
-    // c*c * r_e = k_ke * e*e/m_e, so why doesn't this substitution work? 
+            double lc = log( rho_max / rho_min );
+ 
+            if(lc<0.) lc = 0.;
     
-    //double rho_min = charge_number * k_e*k_e / (k_me*(v_mag*v_mag + delta_e*delta_e));
-    double rho_min_const = charge_number * k_re * k_c*k_c; //Gives LC ~ 9. SI units, in m
-    //double rho_min_const = charge_number * k_e*k_e / k_me; //Gives LC ~ 100
-    //double rho_min_const = charge_number * k_e*k_e / k_me_kg; //Gives LC ~ 20-50
-    double rho_min = rho_min_const / (v2 + d_paral_e*d_paral_e + d_perp_e*d_perp_e);
-
-    double lc = log( rho_max / rho_min );
-    if(lc<0.) lc = 0.;
-    
-    double arg = v_mag / delta_e;
-    double phi = sqrt( 2 / k_pi ) * ( erf(arg/sqrt(2)) - arg * exp((-arg*arg)/2) );
-    double result = phi * pow(v_mag,-3);
-    
-    force_result_trans = f_const_ * charge_number*charge_number * lc * density_e * result * v_tr;
-    force_result_long = f_const_ * charge_number*charge_number * lc * density_e * result * v_long;
+            double arg = v_mag / delta_e;
+            double phi = sqrt( 2 / k_pi ) * ( erf(arg/sqrt(2)) - arg * exp((-arg*arg)/2) );
+            double result = phi * pow(v_mag,-3);
+ 
+            force_result_trans = f_const_ * charge_number*charge_number * lc * density_e * result * v_tr;
+            force_result_long = f_const_ * charge_number*charge_number * lc * density_e * result * v_long;
+            //std::cout<<" lc "<<lc<<" density_e "<<density_e<<" result "<<result<<" v_long "<<v_long<<" = "<<force_result_long*k_N_eVm<<std::endl;
+        }
+        else{
+            force_result_trans = 0.0;
+            force_result_long = 0.0;
+        }
+    }
+    else{
+        std::cout<<" Arbitrary distribution features not yet implemented"<<std::endl;
+    }
 }
 
 double Force_Erlangen::fast_trans(double *k, size_t dim, void *params){
@@ -556,7 +564,7 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
     double final_result_trans,final_result_long = 0.0;
     double result_trans,result_long, error_trans,error_long;
 
-    if(v_mag > 0.){
+    if(v_mag > 0. && density_e > 0.){
         int_info params;
         params.V_trans = v_tr; //Ion velocity components
         params.V_long  = v_long;
@@ -591,9 +599,11 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
             double xu[2] = {cutoff_,cutoff_};
 
             //There is an approximation when V>>d_paral_e
-            if(false){ 
-                /*
-                if(v_mag >(500*d_paral_e)){
+ //           if(false){ 
+   
+            //A guess at the limit of approximation
+                if(v_mag >(50*d_paral_e)){
+ //           if(v_mag > 0){
                 //Calculate the coulomb log
                 
                 double delta = k_me_kg * v_mag / (k_e * magnetic_field);
@@ -605,7 +615,7 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
                 
                 result_trans = v_tr * L_C * pow(v_mag*v_mag + d_paral_e*d_paral_e,-3/2);
                 result_long = v_long * L_C * pow(v_mag*v_mag + d_paral_e*d_paral_e,-3/2);
-                */
+          //      */
             }
             else{
                 EvalIntegral(&stretched_trans,params,xl,xu,(size_t) 2,result_trans,error_trans);
@@ -623,10 +633,11 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
             double xu[2] = {cutoff_,cutoff_};
             double delta = k_me_kg * v_mag / (k_e * magnetic_field);
     
-            if(false){
-                /*
+//            if(false){
+
             //There is an approximation when V>>d_paral_e
             if(v_mag >(500*d_paral_e)){
+ //           if(v_mag > 0){
                 //Calculate the coulomb log
                 double delta = k_me_kg * v_mag / (k_e * magnetic_field);
                 //Several factors cancel out in the coulomb log
@@ -634,7 +645,7 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
 
                 result_trans = v_long * L_C * v_tr*v_tr / pow(v_mag,5);
                 result_long = v_long * L_C * (v_long*v_long - v_tr*v_tr) / pow(v_mag,5);
-                */
+
             }
             else{
                 EvalIntegral(&tight_trans,params,xl,xu,(size_t) 2,result_trans,error_trans);
@@ -644,13 +655,18 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
             final_result_trans += 4 * k_pi * result_trans / sqrt(2*k_pi);
             final_result_long  += 4 * k_pi * result_long / sqrt(2*k_pi);
         }
-    }
     
-    force_result_trans = f_const_ * charge_number*charge_number * density_e * final_result_trans;
-    force_result_trans /= d_perp_e*d_perp_e * d_paral_e;
+    
+        force_result_trans = f_const_ * charge_number*charge_number * density_e * final_result_trans;
+        force_result_trans /= d_perp_e*d_perp_e * d_paral_e;
 
-    force_result_long = f_const_ * charge_number*charge_number * density_e * final_result_long;
-    force_result_long /= d_perp_e*d_perp_e * d_paral_e;    
+        force_result_long = f_const_ * charge_number*charge_number * density_e * final_result_long;
+        force_result_long /= d_perp_e*d_perp_e * d_paral_e;    
+    }
+    else{
+        force_result_trans = 0.0;
+        force_result_long = 0.0;
+    }
 }
     
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,

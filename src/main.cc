@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
 
     }
     else {
-        Test test = Test::BOTH;
+        Test test = Test::DYNAMICECOOL;
         switch (test){
             case Test::BOTH: {
                 // define proton beam;
@@ -444,7 +444,7 @@ int main(int argc, char** argv) {
                 Beam p_beam(Z,m0/k_u, KE, emit_nx0, emit_ny0, dp_p0, N_ptcl);
 
                  // define the lattice of the proton ring
-                std::string filename = "MEICBoosterRedesign.tfs";
+                std::string filename = "/data/Booster.tfs";
                 Lattice lattice(filename);
 
                 //Define the ring
@@ -485,7 +485,7 @@ int main(int argc, char** argv) {
                 Beam p_beam(Z,m0/k_u, KE, emit_nx0, emit_ny0, dp_p0, N_ptcl);
 
                 // define the lattice of the proton ring
-                std::string filename = "MEICBoosterRedesign.tfs";
+                std::string filename = "Booster.tfs";
                 Lattice lattice(filename);
 
                 //Define the ring
@@ -519,7 +519,7 @@ int main(int argc, char** argv) {
                 unsigned int n_sample = 40000;
                 ecool_paras = new EcoolRateParas(n_sample);
                 //define friction force formula
-                force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
+                force_paras = ChooseForce(ForceFormula::ERLANGEN);
                 //define dynamic simulation
                 dynamic_paras = new DynamicParas(60, 120, false, true);
                 dynamic_paras->set_model(DynamicModel::MODEL_BEAM);
