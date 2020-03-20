@@ -5,7 +5,7 @@
 #include <cmath>
 #include "constants.h"
 
-enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV,BUDKER,ERLANGEN};
+enum class ForceFormula {PARKHOMCHUK,DERBENEVSKRINSKY,MESHKOV,UNMAGNETIZED,BUDKER,ERLANGEN};
 
 class ForceParas{
  protected:
@@ -20,8 +20,23 @@ class ForceParas{
     bool do_test_ = false;
     const char* test_filename_;
     double f_const_;
+
+    double cutoff_ = 1e5; //cutoff value for integrals
+    size_t calls_ = 5e5; //The number of MC samples when calculating integrals
+    //A struct to carry info for integration
+    struct int_info {
+        double V_trans;
+        double V_long;
+        double width; 
+        double d_perp_e;
+        double d_paral_e;
+        double rho_max;
+        double B_field;
+        int Z;
+    };
+    
  public:
-    ForceFormula formula(){return formula_;}
+    ForceFormula formula()const {return formula_;}
     double park_temperature_eff() const {return park_temperature_eff_;}
     double magnetic_field() const {return magnetic_field_;}
     double d_perp_e() const {return d_perp_e_;}
@@ -41,6 +56,8 @@ class ForceParas{
     int set_time_cooler(double x){time_cooler_ = x; return 0;}
     int set_do_test(bool b){do_test_ = b; return 0;}
     int set_filename(const char* f){test_filename_=f; return 0;}
+    int set_cutoff(double c){cutoff_ = c; return 0;}
+    int set_calls(size_t c){calls_ = c; return 0;} 
     ForceParas(ForceFormula formula):formula_(formula){};
     ForceParas(ForceFormula formula,double f_const,const char* test_filename):formula_(formula),
                     f_const_(f_const),test_filename_(test_filename){};
@@ -51,6 +68,12 @@ class ForceParas{
     int ApplyForce(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                 double temperature, double magnetic_field, double d_perp_e, double d_paral_e, double time_cooler,
                 double *force_tr, double *force_long, bool do_test);
+    
+    //This is a wrapper for the integrals that show up in these force calculations
+    void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
+                          double *xl, double *xu, size_t dim, double &result, double &error);
+    
+    double max_impact_factor(double v_dlt, int charge_number,double density_e,double time_cooler);
     
     virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, int charge_number,
                        double density_e,double time_cooler,double magnetic_field, double &result_trans, double &result_long) = 0;      
@@ -70,13 +93,6 @@ class Force_Parkhomchuk : public ForceParas{
 
 class Force_DS : public ForceParas{
     private:
-        //Convenience struct to pass all of the information
-        // needed to calculate the integral
-        struct int_info {
-            double V_trans;
-            double V_long;
-            double width; 
-        };
         //The factor of (0.5*pi/(2sqrt(2pi))) comes from the difference between the constants
         // used in Parkhomchuk with the constants used in the Pestrikov D&S integrals
         //const double f_const = -2 * (k_pi/(2*sqrt(2*k_pi))) * k_me_kg * pow(k_re*k_c*k_c,2);
@@ -85,6 +101,7 @@ class Force_DS : public ForceParas{
         //These must be static so they can be passed to GSL integration
         static double trans_integrand(double alpha,void *params);
         static double long_integrand(double alpha, void *params);
+        //A 1d version of the eval integral function
         void EvalIntegral(double (*func)(double, void*), int_info &params,
                           double &result, double &error);
     
@@ -106,6 +123,21 @@ class Force_Meshkov : public ForceParas{
                            double &force_result_trans, double &force_result_long);
 };
 
+class Force_Unmagnetized : public ForceParas{
+    private:
+        bool approximate_ = true; //Use a simplification in the integration
+    
+    public:
+        Force_Unmagnetized():ForceParas(ForceFormula::UNMAGNETIZED,-4 * k_pi * k_me_kg * pow(k_re*k_c*k_c,2),"Unmagnetized.txt"){};
+        static double normalization_factor(double *k, size_t dim, void *params);    
+        static double trans_integrand(double *k, size_t dim, void *params);
+        static double long_integrand(double *k, size_t dim, void *params);
+        
+    virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
+                           int charge_number,double density_e,double time_cooler,double magnetic_field,
+                           double &force_result_trans, double &force_result_long); 
+};
+
 class Force_Budker : public ForceParas{
     private:
     //Force-dependent constants
@@ -125,18 +157,7 @@ class Force_Erlangen : public ForceParas{
         bool fast_ = false;
         bool stretched_ = false;
         bool tight_ = true;
-        double cutoff_ = 1e5; //cutoff value for integrals
-        size_t calls_ = 5e5; //The number of MC samples when calculating integrals
-    
-        struct int_info {
-            double V_trans;
-            double V_long;
-            double d_perp_e;
-            double d_paral_e;
-            double rho_max;
-            double B_field;
-            int Z;
-        };
+
     
         //Definitions of integrals that need to be evaluated through Monte Carlo:
         static double fast_trans(double *k, size_t dim, void *params);
@@ -146,18 +167,14 @@ class Force_Erlangen : public ForceParas{
         static double stretched_trans(double *k, size_t dim, void *params);
         static double stretched_long(double *k, size_t dim, void *params);
         
-        //This is a wrapper for the integrals above
-        void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
-                          double *xl, double *xu, size_t dim, double &result, double &error);
-    
+ 
     public:
         Force_Erlangen():ForceParas(ForceFormula::ERLANGEN, -k_me_kg * pow(k_re*k_c*k_c,2),"Erlangen.txt"){};
 
         int set_fast(bool k){fast_ = k; return 0;}
         int set_tight(bool k){tight_ = k; return 0;}
         int set_stretched(bool k){stretched_ = k; return 0;}
-        int set_cutoff(double c){cutoff_ = c; return 0;}
-        int set_calls(size_t c){calls_ = c; return 0;}    
+           
     
          virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, 
                             int charge_number, double density_e, double time_cooler,

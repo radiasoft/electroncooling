@@ -26,6 +26,16 @@ double t_cooler;
 int rms_dynamic_count = -1;
 bool dynamic_flag = false;
 
+EcoolRateParas::EcoolRateParas(const EcoolRateParas& old_ecool){
+    ion_sample_ = old_ecool.ion_sample();
+    n_sample_ = old_ecool.n_sample();
+    n_tr_ = old_ecool.n_tr();
+    n_long_ = old_ecool.n_long();
+    shift_ = old_ecool.shift();
+    bunch_separate_ = old_ecool.bunch_separate();
+    n_long_sample_ = old_ecool.n_long_sample();    
+}
+
 //Initialize the scratch variables for electron cooling rate calculation.
 int assign_ecool_scratches(unsigned int n){
     x_bet.reset(new double[n]);
@@ -933,10 +943,10 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     
     //Calculate the electron density for each ion   
     electron_density(ecool_paras, ion, ebeam);
-
+    
     //Phase space variables to dynamic variables
     space_to_dynamic(n_sample, ion);
-
+    
     //Time through the cooler
     t_cooler = cooler.length()/(ion.beta()*k_c);
 
