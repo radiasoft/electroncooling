@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
                 Beam c_beam(n_charge, n_mass, kinetic_energy, emit_nx0, emit_ny0, dp_p0, n_ptcl);
 
                 //define the ring
-                std::string filename = "csrm.tfs";
+                std::string filename = "Booster.tfs";
                 Lattice lattice(filename);
                 Ring ring(lattice, c_beam);
 
@@ -315,13 +315,13 @@ int main(int argc, char** argv) {
 
 
                 //define cooling model
-    //            unsigned int n_sample = 5000;
-    //            EcoolRateParas ecool_rate_paras(n_sample);
-                unsigned int n_tr = 100;
-                unsigned int n_long = 100;
-                EcoolRateParas ecool_rate_paras(n_tr, n_long);
+                unsigned int n_sample = 5000;
+                EcoolRateParas ecool_rate_paras(n_sample);
+//                unsigned int n_tr = 100;
+//                unsigned int n_long = 100;
+    //            EcoolRateParas ecool_rate_paras(n_tr, n_long);
 
-                ForceParas *force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
+                ForceParas *force_paras = ChooseForce(ForceFormula::UNMAGNETIZED);
                 double rate_x, rate_y, rate_s;
                 ecooling_rate(ecool_rate_paras, *force_paras, c_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
                 std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
@@ -519,11 +519,15 @@ int main(int argc, char** argv) {
                 unsigned int n_sample = 40000;
                 ecool_paras = new EcoolRateParas(n_sample);
                 //define friction force formula
-                force_paras = ChooseForce(ForceFormula::ERLANGEN);
+                force_paras = ChooseForce(ForceFormula::BUDKER);
+                //force_paras->set_cutoff(5e4); //Set the extreme limits of integration (in m/s) (1e5 default)
+                //force_paras->set_calls(5e4); //Set the number of MC calls to evaluate integral (5e5 default)
+                //force_paras->set_fast(false);
+                //force_paras->set_stretched(true);
                 //define dynamic simulation
                 dynamic_paras = new DynamicParas(60, 120, false, true);
                 dynamic_paras->set_model(DynamicModel::MODEL_BEAM);
-
+                dynamic_paras->set_n_sample(n_sample);
 //                char file[100] = "test_dynamic_ecool_DC_model_beam.txt";
 //                std::ofstream outfile;
 //                outfile.open(file);

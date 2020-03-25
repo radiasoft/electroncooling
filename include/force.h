@@ -21,9 +21,9 @@ class ForceParas{
     const char* test_filename_;
     double f_const_;
 
-    double cutoff_ = 1e5; //cutoff value for integrals
-    size_t calls_ = 5e5; //The number of MC samples when calculating integrals
-    //A struct to carry info for integration
+    //Variables related to the integration required for some force models
+    double cutoff_ = 1e5; //cutoff value for indefinite integrals
+    size_t calls_ = 5e5; //The number of MC samples when calculating integrals  
     struct int_info {
         double V_trans;
         double V_long;
@@ -34,6 +34,12 @@ class ForceParas{
         double B_field;
         int Z;
     };
+ 
+    //For Erlangen model
+    bool fast_ = true;
+    bool stretched_ = false;
+    bool tight_ = false;
+
     
  public:
     ForceFormula formula()const {return formula_;}
@@ -58,6 +64,12 @@ class ForceParas{
     int set_filename(const char* f){test_filename_=f; return 0;}
     int set_cutoff(double c){cutoff_ = c; return 0;}
     int set_calls(size_t c){calls_ = c; return 0;} 
+    //For Erlangen model    
+    int set_fast(bool k){fast_ = k; return 0;}
+    int set_tight(bool k){tight_ = k; return 0;}
+    int set_stretched(bool k){stretched_ = k; return 0;}
+           
+    
     ForceParas(ForceFormula formula):formula_(formula){};
     ForceParas(ForceFormula formula,double f_const,const char* test_filename):formula_(formula),
                     f_const_(f_const),test_filename_(test_filename){};
@@ -128,7 +140,7 @@ class Force_Unmagnetized : public ForceParas{
         bool approximate_ = true; //Use a simplification in the integration
     
     public:
-        Force_Unmagnetized():ForceParas(ForceFormula::UNMAGNETIZED,-4 * k_pi * k_me_kg * pow(k_re*k_c*k_c,2),"Unmagnetized.txt"){};
+        Force_Unmagnetized():ForceParas(ForceFormula::UNMAGNETIZED, k_me_kg * pow(k_re*k_c*k_c,2), "Unmagnetized.txt"){};
         static double normalization_factor(double *k, size_t dim, void *params);    
         static double trans_integrand(double *k, size_t dim, void *params);
         static double long_integrand(double *k, size_t dim, void *params);
@@ -154,9 +166,9 @@ class Force_Budker : public ForceParas{
 
 class Force_Erlangen : public ForceParas{
     private:
-        bool fast_ = false;
+        bool fast_ = true;
         bool stretched_ = false;
-        bool tight_ = true;
+        bool tight_ = false;
 
     
         //Definitions of integrals that need to be evaluated through Monte Carlo:
@@ -173,8 +185,7 @@ class Force_Erlangen : public ForceParas{
 
         int set_fast(bool k){fast_ = k; return 0;}
         int set_tight(bool k){tight_ = k; return 0;}
-        int set_stretched(bool k){stretched_ = k; return 0;}
-           
+        int set_stretched(bool k){stretched_ = k; return 0;}    
     
          virtual void force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature, 
                             int charge_number, double density_e, double time_cooler,
