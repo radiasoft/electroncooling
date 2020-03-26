@@ -519,9 +519,9 @@ int main(int argc, char** argv) {
                 unsigned int n_sample = 40000;
                 ecool_paras = new EcoolRateParas(n_sample);
                 //define friction force formula
-                force_paras = ChooseForce(ForceFormula::BUDKER);
+                force_paras = ChooseForce(ForceFormula::UNMAGNETIZED);
                 //force_paras->set_cutoff(5e4); //Set the extreme limits of integration (in m/s) (1e5 default)
-                //force_paras->set_calls(5e4); //Set the number of MC calls to evaluate integral (5e5 default)
+                force_paras->set_calls(5e4); //Set the number of MC calls to evaluate integral (5e5 default)
                 //force_paras->set_fast(false);
                 //force_paras->set_stretched(true);
                 //define dynamic simulation
