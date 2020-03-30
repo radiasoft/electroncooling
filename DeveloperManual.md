@@ -201,6 +201,13 @@ The available force models are have been benchmarked with resepect to the forces
 
 ![alt text](examples/JSPEC_Betacool_Validation.png "Validation Image")
 
+Some of these force models posess extra options that the user may want to configure. For example, the Un-magnetized model contains two approximate models for speeding up computation - the Binney approximation and an effective max value on the integration limits in the model. if neither Binney nor "Approximate" are set to True, then the full model is calculated. For the full calculation, a substitution is applied to the integral in order to map integration limits from $(-\infty,\infty)$ to $(0,1)$, for the benefit of the MC integration estimation. 
+
+~~~~c++
+force_paras->set_approximate(true);
+~~~~
+
+
 The Erlangen model includes a few extra options, Fast, Tight, or Stretched. Use of this model requires that at least one of these is set to True.
 
 ~~~~c++

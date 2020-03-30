@@ -115,9 +115,9 @@ void ForceParas::EvalIntegral(double (*func)(double*, size_t, void*), int_info &
     r = gsl_rng_alloc(T);
 
     //Hard-code this for now while we're testing
-    bool plain_ = true;
+    bool plain_ = false;
     bool miser_ = false;
-    bool vegas_ = false;
+    bool vegas_ = true;
 
     //This uses the PLAIN algorithm, which samples a fixed number of points and should be fast
     if(plain_){
@@ -425,6 +425,44 @@ double Force_Unmagnetized::trans_integrand(double *k, size_t dim, void *params){
     return U;
 }
 
+double Force_Unmagnetized::full_trans_integrand(double *k, size_t dim, void *params){
+   
+    //This contains a pair of U-substitutions, v_t -> (1-t_0)/t_0 and 
+    // v_l -> (1-t_1)/t_1 that map the integration limits to finite values.
+    
+    (void) (dim); //avoid unused parameter warnings
+    
+    double t_0 = k[0]; //change of variables for v_t
+    double t_1 = k[1];  //= integrating variable v_long (all values)
+    double phi = k[2];   //= integrating angle phi (radians)
+    struct int_info *p = (struct int_info *)params;    
+    double y1 = p->V_long - ((1.-t_1)/t_1);
+    double y2 = p->V_long + ((1.-t_1)/t_1);
+    double z  = p->V_trans - ((1.-t_0)/t_0)*cos(phi);
+    double d_perp_e  = p->d_perp_e;
+    double d_paral_e = p->d_paral_e;
+    double rho_max   = p->rho_max;
+    double rho_min_const = p->Z * k_re * k_c*k_c; //SI units, m
+
+    double denom1 = ( y1*y1 + z*z + pow(((1.-t_0)/t_0)*sin(phi),2));
+    double rho_min1 = rho_min_const / denom1;
+
+    double denom2 = ( y2*y2 + z*z + pow(((1.-t_0)/t_0)*sin(phi),2));
+    double rho_min2 = rho_min_const / denom2;
+
+    double L_C1 = log(rho_max/rho_min1);
+    if(L_C1<0.0) L_C1 = 0.0;  
+    double L_C2 = log(rho_max/rho_min2);
+    if(L_C2<0.0) L_C2 = 0.0;  
+   
+    double maxw = exp(((((1.-t_0)/t_0)*((1.-t_0)/t_0))/(2*d_perp_e*d_perp_e)) +
+                      ((((1.-t_1)/t_1)*((1.-t_1)/t_1))/(2*d_paral_e*d_paral_e)));
+    
+    double U1 = z * L_C1 * ((1.-t_0)/t_0) / (maxw * pow(denom1,1.5));
+    double U2 = z * L_C2 * ((1.-t_0)/t_0) / (maxw * pow(denom2,1.5));
+    return (U1+U2) / (t_0*t_0 * t_1*t_1);
+}
+
 double Force_Unmagnetized::long_integrand(double *k, size_t dim, void *params){
    
     (void) (dim); //avoid unused parameter warnings
@@ -450,6 +488,44 @@ double Force_Unmagnetized::long_integrand(double *k, size_t dim, void *params){
     
     double U = y * L_C * v_t / (maxw * pow(denom,1.5));
     return U;
+}
+
+double Force_Unmagnetized::full_long_integrand(double *k, size_t dim, void *params){
+   
+    //This contains a pair of U-substitutions, v_t -> (1-t_0)/t_0 and 
+    // v_l -> (1-t_1)/t_1 that map the integration limits to finite values.
+    
+    (void) (dim); //avoid unused parameter warnings
+    
+    double t_0 = k[0]; 
+    double t_1 = k[1];  //= integrating variable v_long (all values)
+    double phi = k[2];   //= integrating angle phi (radians)
+    struct int_info *p = (struct int_info *)params;    
+    double y1 = p->V_long - ((1.-t_1)/t_1);
+    double y2 = p->V_long + ((1.-t_1)/t_1);
+    double z  = p->V_trans - ((1.-t_0)/t_0)*cos(phi);
+    double d_perp_e  = p->d_perp_e;
+    double d_paral_e = p->d_paral_e;
+    double rho_max   = p->rho_max;
+    double rho_min_const = p->Z * k_re * k_c*k_c; //SI units, m
+    
+    double denom1   = ( y1*y1 + z*z + pow(((1.-t_0)/t_0)*sin(phi),2));
+    double rho_min1 = rho_min_const / denom1;
+
+    double denom2   = ( y2*y2 + z*z + pow(((1.-t_0)/t_0)*sin(phi),2));
+    double rho_min2 = rho_min_const / denom2;
+
+    double L_C1 = log(rho_max/rho_min1);
+    if(L_C1<0.0) L_C1 = 0.0;  
+    double L_C2 = log(rho_max/rho_min2);
+    if(L_C2<0.0) L_C2 = 0.0;  
+    
+    double maxw = exp(((((1.-t_0)/t_0)*((1.-t_0)/t_0))/(2*d_perp_e*d_perp_e)) + 
+                      ((((1.-t_1)/t_1)*((1.-t_1)/t_1))/(2*d_paral_e*d_paral_e)));
+    
+    double U1 = y1 * L_C1 * ((1.-t_0)/t_0) / (maxw * pow(denom1,1.5));
+    double U2 = y2 * L_C2 * ((1.-t_0)/t_0) / (maxw * pow(denom2,1.5));
+    return (U1+U2) / (t_0*t_0 * t_1*t_1);
 }
 
 double Force_Unmagnetized::Binney_trans(double alpha,void *params){
@@ -526,20 +602,20 @@ void Force_Unmagnetized::force(double v_tr, double v_long, double d_perp_e, doub
             //Evaluate the double integral normalization factor
             EvalIntegral(&normalization_factor,params,xl,xu,(size_t) 2,norm_factor,error_norm);
 
+            double trans_result,trans_error;
+            double long_result,long_error;
+
             //Now calculate the actual integrals
             //Lower limits to the integrals 
             double xl_triple[3] = {0.,-3*d_paral_e,0.}; //in order: v_trans,v_long,phi
             //Upper limits to the variables
             double xu_triple[3] = {3*d_perp_e,3*d_paral_e,k_pi};
-
-            double trans_result,trans_error;
-            double long_result,long_error;
             
             EvalIntegral(&trans_integrand,params,xl_triple,xu_triple,(size_t) 3,trans_result,trans_error);
             EvalIntegral(&long_integrand,params,xl_triple,xu_triple,(size_t) 3,long_result,long_error);
 
             double constants = 4*k_pi * f_const_ * charge_number*charge_number * density_e / norm_factor;
-            //std::cout<<" norm="<<norm_factor<<" trans_result="<<trans_result<<" long_result="<<long_result<<" "<<constants * long_result<<std::endl;
+           
             force_result_trans = constants * trans_result;
             force_result_long  = constants * long_result;
         }
@@ -565,8 +641,8 @@ void Force_Unmagnetized::force(double v_tr, double v_long, double d_perp_e, doub
             
             //f_const_ is correct for binney integrals except for the sign. We
             // handle that here.
-            double constants = - 2*sqrt(2*k_pi) * f_const_ * charge_number*charge_number *
-                density_e * L_C;
+            double constants = - 2*sqrt(2*k_pi) * f_const_ * 
+                charge_number*charge_number * density_e * L_C;
             
             force_result_trans = constants * trans_result * v_tr / pow(d_perp_e,3); 
             force_result_long = constants * long_result * v_long / pow(d_perp_e,3); 
@@ -575,20 +651,21 @@ void Force_Unmagnetized::force(double v_tr, double v_long, double d_perp_e, doub
         else{
             //Full integrals, will take longer
             
-            //Lower limits to the integrals 
-            double xl[3] = {0.,-cutoff_,0.}; //in order: v_trans,v_long,phi
-            //Upper limits to the variables
-            double xu[3] = {cutoff_,cutoff_,2*k_pi};
-            double norm_factor,error_norm;
-            
-            //Now calculate the actual integrals (limits are the same)           
+            //This contains a pair of U-substitutions that map the 
+            // integration limits from (-inf,inf) and (0,inf) to (0,1].
+    
             double trans_result,trans_error;
             double long_result,long_error;
+                
+            //Lower limits to the integrals 
+            double xl_triple[3] = {0., 0., 0.}; //in order: t_0,t_1,phi
+            //Upper limits to the variables
+            double xu_triple[3] = {1., 1., 2*k_pi};    
+               
+            EvalIntegral(&alt_trans_integrand,params,xl_triple,xu_triple,(size_t) 3,trans_result,trans_error);
+            EvalIntegral(&alt_long_integrand,params,xl_triple,xu_triple,(size_t) 3,long_result,long_error);
             
-            EvalIntegral(&trans_integrand,params,xl,xu,(size_t) 3,trans_result,trans_error);
-            EvalIntegral(&long_integrand,params,xl,xu,(size_t) 3,long_result,long_error);
-
-            double constants = 4* k_pi * f_const_ * charge_number*charge_number * density_e;
+            double constants = sqrt(2/k_pi) * f_const_ * charge_number*charge_number * density_e;
             force_result_trans = constants * trans_result / (d_perp_e*d_perp_e * d_paral_e);
             force_result_long  = constants * long_result / (d_perp_e*d_perp_e * d_paral_e);           
         }
@@ -656,7 +733,8 @@ double Force_Erlangen::fast_trans(double *k, size_t dim, void *params){
     if(alt_rho_max< p->rho_max) L_C = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min*rho_min)) );
     else L_C = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min*rho_min)) );
     
-    double maxw = exp(((v_t*v_t)/(2*d_perp_e*d_perp_e)) + ((v_l*v_l)/(2*d_paral_e*d_paral_e)));
+    double maxw = exp(((v_t*v_t)/(2*d_perp_e*d_perp_e)) +
+                      ((v_l*v_l)/(2*d_paral_e*d_paral_e)));
     
     double U = z * L_C * v_t / (pow(U_rel,1.5)*maxw);
     
@@ -685,32 +763,40 @@ double Force_Erlangen::Alt_fast_trans(double *k, size_t dim, void *params){
     
     (void) (dim); //avoid unused parameter warnings
     
-    double v_t = k[0]; //= integrating variable v_trans (non-negative)
-    //double v_l = k[1];  //= integrating variable v_long (all values)
-    double t_0 = k[1];  //= Change of variables for v_long-> (1-t_0)/t_0 (all values)
+    double t_0 = k[0]; //change of variables for v_trans
+    double t_1 = k[1];  //= Change of variables for v_long-> (1-t_1)/t_1 (all values)
     double phi = k[2];   //= integrating angle phi (radians)
-    double L_C;
+    double L_C1, L_C2;
     struct int_info *p = (struct int_info *)params;    
-    double y = p->V_long - (1-t_0)/t_0;
-    double z = p->V_trans - v_t*cos(phi);
+    double y1 = p->V_long - (1.0-t_1)/t_1;
+    double y2 = p->V_long + (1.0-t_1)/t_1;
+    double z = p->V_trans - ((1.0-t_0)/t_0)*cos(phi);
     double d_perp_e = p->d_perp_e;
     double d_paral_e = p->d_paral_e;
-    
-    //From Betacool source
-    double U_rel = y*y + z*z + pow(v_t * sin(phi),2);   
-    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field);
+
+    double U_rel1 = y1*y1 + z*z + pow(((1.-t_0)/t_0) * sin(phi),2);   
+    double U_rel2 = y2*y2 + z*z + pow(((1.-t_0)/t_0) * sin(phi),2);   
+    double alt_rho_max = k_me_kg * ((1.-t_0)/t_0) / (k_e * p->B_field);
     double rho_min_const = p->Z * k_me_kg * k_re * k_c*k_c; //SI units, m
-    double rho_min = rho_min_const / U_rel;
+    double rho_min1 = rho_min_const / U_rel1;
+    double rho_min2 = rho_min_const / U_rel2;
     
-    if(alt_rho_max< p->rho_max) L_C = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min*rho_min)) );
-    else L_C = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min*rho_min)) );
+    if(alt_rho_max< p->rho_max) L_C1 = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min1*rho_min1)) );
+    else L_C1 = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min1*rho_min1)) );
+    if(alt_rho_max< p->rho_max) L_C2 = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min2*rho_min2)) );
+    else L_C2 = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min2*rho_min2)) );
     
-    double maxw = exp(((v_t*v_t)/(2*d_perp_e*d_perp_e)) + (pow((1.0-t_0)/t_0,2)/(2*d_paral_e*d_paral_e)));
-    
-    double U = z * L_C * v_t / (pow(U_rel,1.5)*maxw);
-    
-    U /= (v_t * maxw) * t_0*t_0;
-    
+    //maxw doesn't change if we change sign (1.0-t_1)/t_1 -> -(1.0-t_1)/t_1
+    double maxw = exp(((((1.-t_0)/t_0)*((1.-t_0)/t_0))/(2*d_perp_e*d_perp_e)) +
+                      (pow((1.0-t_1)/t_1,2)/(2*d_paral_e*d_paral_e)));
+        
+    double U1 = z * L_C1 * ((1-t_0)/t_0) / (pow(U_rel1,1.5)*maxw);   
+    U1 /= (((1.-t_0)/t_0) * maxw);
+
+    double U2 = z * L_C2 * ((1-t_0)/t_0) / (pow(U_rel2,1.5)*maxw);   
+    U2 /= (((1.-t_0)/t_0) * maxw);
+
+    double U = (1.0/(t_0*t_0 * t_1*t_1)) * (U1 + U2);
     
     return U;
 }
@@ -719,46 +805,41 @@ double Force_Erlangen::Alt_fast_long(double *k, size_t dim, void *params){
     
     (void) (dim); //avoid unused parameter warnings
     
-    double v_t = k[0]; //= integrating variable v_trans (non-negative)
-    //double v_l = k[1];  //= integrating variable v_long (all values)
-    double t_0 = k[1];  //= Change of variables for v_long-> (1-t_0)/t_0 (all values)
+    double t_0 = k[0]; //change of variables for v_trans -> (1-t_0)/t_0
+    double t_1 = k[1];  //= Change of variables for v_long-> (1-t_1)/t_1 (all values)
     double phi = k[2];   //= integrating angle phi (radians)
-    double L_C; 
+    double L_C1, L_C2; 
     struct int_info *p = (struct int_info *)params;  
-    double y = p->V_long - (1.0-t_0)/t_0;
-    double z = p->V_trans - v_t*cos(phi);
+    double y1 = p->V_long - (1.-t_1)/t_1;
+    double y2 = p->V_long + (1.-t_1)/t_1;
+    double z = p->V_trans - ((1.-t_0)/t_0)*cos(phi);
     double d_perp_e = p->d_perp_e;
-    double d_paral_e = p->d_paral_e;
- 
-    //From Betacool source
-    double U_rel = y*y + z*z + pow(v_t * sin(phi),2);   
-    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field);
+    double d_paral_e = p->d_paral_e;  
+
+    double U_rel1 = y1*y1 + z*z + pow(((1.-t_0)/t_0) * sin(phi),2);   
+    double U_rel2 = y2*y2 + z*z + pow(((1.-t_0)/t_0) * sin(phi),2);   
+    double alt_rho_max = k_me_kg * ((1.-t_0)/t_0) / (k_e * p->B_field);
     double rho_min_const = p->Z * k_me_kg * k_re * k_c*k_c; //SI units, m
-    double rho_min = rho_min_const / U_rel;
+    double rho_min1 = rho_min_const / U_rel1;
+    double rho_min2 = rho_min_const / U_rel2;
     
-    if(alt_rho_max< p->rho_max) L_C = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min*rho_min)) );
-    else L_C = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min*rho_min)) );
-    
-    double maxw = exp(-((v_t*v_t)/(2*d_perp_e*d_perp_e)) - (pow((1.0-t_0)/t_0,2)/(2*d_paral_e*d_paral_e)));
-    
-    double U = y * L_C * v_t / (pow(U_rel,1.5)*maxw);
-    
-    U /= (v_t * maxw) * t_0*t_0;
-    
-    /*
-    //The Coulomb log
-    double alt_rho_max = k_me_kg * v_t / (k_e * p->B_field); //SI units, m
-    double rho_min_const = p->Z * k_me_kg * k_re * k_c*k_c; //SI units, m
-//    double rho_min_const = p->Z * k_e*k_e * k_ke / k_me;
-    double rho_min = rho_min_const / ( y*y + z*z + pow(v_t*sin(phi),2));
-    
-    //for some regions of integration, use the smaller rho_max
-    L_C = log( alt_rho_max / rho_min );
-    if(L_C < 0.0) L_C = 0.0;
-    
-    double U = y * v_t * L_C * exp(-((v_t*v_t)/(2*d_perp_e*d_perp_e)) - ((v_l*v_l)/(2*d_paral_e*d_paral_e)));
-    U /= pow(y*y + z*z + pow(v_t*sin(phi),2),3/2);
-    */
+    if(alt_rho_max< p->rho_max) L_C1 = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min1*rho_min1)) );
+    else L_C1 = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min1*rho_min1)) );
+    if(alt_rho_max< p->rho_max) L_C2 = 0.5 * log(1.0 + ((alt_rho_max*alt_rho_max) / (rho_min2*rho_min2)) );
+    else L_C2 = 0.5 * log(1.0 + ((p->rho_max*p->rho_max) / (rho_min2*rho_min2)) );
+
+    //maxw doesn't change if we change sign (1.0-t_1)/t_1 -> -(1.0-t_1)/t_1
+    double maxw = exp(((((1.-t_0)/t_0)*((1.-t_0)/t_0))/(2*d_perp_e*d_perp_e)) +
+                      (pow((1.0-t_1)/t_1,2)/(2*d_paral_e*d_paral_e)));
+        
+    double U1 = y1 * L_C1 * ((1.-t_0)/t_0) / (pow(U_rel1,1.5)*maxw);   
+    U1 /= (((1.-t_0)/t_0) * maxw);
+
+    double U2 = y2 * L_C2 * ((1.-t_0)/t_0) / (pow(U_rel2,1.5)*maxw);   
+    U2 /= (((1.-t_0)/t_0) * maxw);
+
+    double U = (1.0/(t_0*t_0 * t_1*t_1)) * (U1 + U2);
+
     return U;
 }
 
@@ -932,6 +1013,10 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
                            int charge_number,double density_e,double time_cooler, double magnetic_field, 
                            double &force_result_trans, double &force_result_long){
 
+    if(!fast_ && !stretched_ && !tight_){
+         assert(false&&"Need to set an Erlangen model integration method!");
+    }
+    
     double v_mag = sqrt(v_tr*v_tr + v_long*v_long);
 
     double final_result_trans,final_result_long = 0.0;
@@ -968,19 +1053,16 @@ void Force_Erlangen::force(double v_tr, double v_long, double d_perp_e, double d
         }
         if(fast_){
             //Lower limits to the integrals 
-            double xl[3] = {0.,0,0.}; //in order: v_trans,v_long,phi
+            double xl[3] = {0., 0. , 0.}; //in order: t_0,t_1,phi
             //Upper limits to the variables
-            double xu[3] = {cutoff_,1.0,2*k_pi};
+            double xu[3] = {1.0, 1.0, 2*k_pi};
 
             EvalIntegral(&Alt_fast_trans,params,xl,xu,(size_t) 3,result_trans,error_trans);
             EvalIntegral(&Alt_fast_long, params,xl,xu,(size_t) 3,result_long, error_long);
-            //std::cout<<"Fast trans = "<<result_trans * temp <<" long = "<<result_long * temp<<std::endl;
                       
             final_result_trans += sqrt(2/k_pi) * result_trans;
             final_result_long  += sqrt(2/k_pi) * result_long;
         }
-        
-        
         
         if(stretched_){
             //Integration limits
