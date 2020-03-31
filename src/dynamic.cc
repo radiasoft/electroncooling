@@ -455,6 +455,15 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     if(ring.rf.gamma_tr>0) ring.rf.v = ring.calc_rf_voltage();
 
+    //Store copies of initial conditions for CalculateForce() later
+    EcoolRateParas ecool_paras_tmp(*ecool_paras); //Do we need to copy this one?
+    //ForceParas force_paras_tmp(*force_paras); 
+    Beam ion_tmp(ion);
+    Cooler cooler_tmp(cooler);//Copy constructor not written
+    EBeam ebeam_tmp(ebeam);
+    //make a copy of ne?
+    
+
     //Start tracking
     std::cout<<"Start dynamic simulation ... "<<std::endl;
     dynamic_flag = true;
@@ -519,17 +528,21 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     if (ion_save_itvl>0 && n_step%ion_save_itvl!=0 && dynamic_paras->model()!=DynamicModel::RMS)
         save_ions_sdds(dynamic_paras->n_sample(), "ions"+std::to_string(n_step)+".txt");
-    dynamic_flag = false;
+
     outfile.close();
-    std::cout<<"Finished dynamic simulation."<<std::endl;
 
     //Now, calculate the force as a function of velocity for plotting.
+    // For this we need the initial conditions before the dynamic calculation.
+    
    // Skip this calculation if we're in the testing suite
     if(ecool){// && !dynamic_paras->test() && 
        //       ion.bunched() && ebeam.bunched()){
-       CalculateForce(*ecool_paras, *force_paras, ion, cooler, ebeam, ring);
+       CalculateForce(ecool_paras_tmp, *force_paras, ion_tmp, cooler_tmp, ebeam_tmp, ring);
        save_forces_sdds(dynamic_paras->n_sample(), "force_table.txt");
     }
+    
+    dynamic_flag = false;
+    std::cout<<"Finished dynamic simulation."<<std::endl;
     return 0;
 }
 

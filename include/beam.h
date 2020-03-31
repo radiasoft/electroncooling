@@ -62,6 +62,7 @@ public:
         double sigma_s, double n_particle);
     Beam(int charge_number, double mass_number, double kinetic_energy, double emit_nx, double emit_ny, double dp_p,
         double n_particle);
+    Beam(const Beam&); //copy constructor
 };
 
 enum class Shape {UNIFORM_CYLINDER, GAUSSIAN_BUNCH, UNIFORM_BUNCH, GAUSSIAN_CYLINDER, ELLIPTIC_UNIFORM_BUNCH,
@@ -252,14 +253,14 @@ class EBeam:public Beam{
 
  public:
     EBeamShape *shape_;            //Shape of the electron beam
-    double tmp_tr(){return tmp_tr_;}
-    double tmp_long(){return tmp_long_;}
-    double v_rms_tr(){return v_rms_tr_;}
-    double v_rms_long(){return v_rms_long_;}
+    double tmp_tr()const {return tmp_tr_;}
+    double tmp_long()const {return tmp_long_;}
+    double v_rms_tr()const {return v_rms_tr_;}
+    double v_rms_long()const {return v_rms_long_;}
     void set_velocity(Velocity velocity){velocity_ = velocity;}
     void set_temperature(Temperature temp){temperature_ = temp;}
-    Velocity velocity(){return velocity_;}
-    Temperature temperature(){return temperature_;}
+    Velocity velocity()const {return velocity_;}
+    Temperature temperature()const {return temperature_;}
 
     int emit_nx(){perror("This function is not defined for cooling electron beam"); return 1;}
     int emit_ny(){perror("This function is not defined for cooling electron beam"); return 1;}
@@ -273,5 +274,6 @@ class EBeam:public Beam{
 
     EBeam(double gamma, double tmp_tr, double tmp_long, EBeamShape &shape_defined);
     EBeam(double gamma, EBeamShape &shape_defined);
+    EBeam(const EBeam&);
 };
 #endif // BEAM_H

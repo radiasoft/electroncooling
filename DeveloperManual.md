@@ -178,20 +178,43 @@ EBeam e_beam(gamma_e, tmp_tr, tmp_long, uniform_cylinder); //Coasting electron b
 
 ## Choose the friction force formula
 
-The user needs to choose the formula to use in electron cooling rate calculation. The users's choice of model can depend on several factors, and not every model is an appropriate choice for a given set of beam parameters. The selection of available models is shown below, 
+The user needs to choose the formula to use in electron cooling rate calculation. The users's choice of model can depend on several factors, and not every model is an appropriate choice for a given set of beam parameters. The force models are derived from the pure virtual __ForceParas__ class, and the model selection is handled by the ChooseForce() function. The selection of available models is shown below: 
 
 ~~~~c++
 //Choose the semi-empirical Parkhomchuk formula for friction force calculation
-force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 //Choose the Derbenev & Skrinsky model, appropriate if the electron beam has a Gaussian spread
-force_paras = new ForceParas(ForceFormula::DERBENEVSKRINSKY);
+force_paras = ChooseForce(ForceFormula::DERBENEVSKRINSKY);
 //Choose the asymptotic representation 
-force_paras = new ForceParas(ForceFormula::MESHKOV);
-//Choose the non-magnetized cooling model
-force_paras = new ForceParas(ForceFormula::BUDKER);
+force_paras = ChooseForce(ForceFormula::MESHKOV);
+//Choose the asymptotic representation 
+force_paras = ChooseForce(ForceFormula::ERLANGEN);
+//Chose a non-magnetized cooling model
+force_paras = ChooseForce(ForceFormula::UNMAGNETIZED)
+//Choose an approximate non-magnetized cooling model
+force_paras = ChooseForce(ForceFormula::BUDKER);
+~~~~
+
+Some of these models require more computation than others, and involve multivariable integration with __GSL__ libraries. In particular, the Erlangen and Un-magnetized models may take several hours to evaluate. If JSPEC is compiled with OpenMP enabled, the friction force will be calculated on up to 20 cores in parallel. If a developer wishes to add a new friction force model and follows the examples in force.cc and force.h, then the new model will pick up this multiprocessing as well. 
+
+The available force models are have been benchmarked with resepect to the forces calculated by Betacool. 
+
+![alt text](examples/JSPEC_Betacool_Validation.png "Validation Image")
+
+Some of these force models posess extra options that the user may want to configure. For example, the Un-magnetized model contains two approximate models for speeding up computation - the Binney approximation and an effective max value on the integration limits in the model. if neither Binney nor "Approximate" are set to True, then the full model is calculated. For the full calculation, a substitution is applied to the integral in order to map integration limits from $(-\infty,\infty)$ to $(0,1)$, for the benefit of the MC integration estimation. 
+
+~~~~c++
+force_paras->set_approximate(true);
 ~~~~
 
 
+The Erlangen model includes a few extra options, Fast, Tight, or Stretched. Use of this model requires that at least one of these is set to True.
+
+~~~~c++
+force_paras->set_fast(true);
+~~~~
+
+These models are additive, so if more than one is set to True, the overall friction force will be increased. For more information, see Nuclear Instruments and Methods in Physics Research B 207 (2003) 462–481. 
 
 ## Electron cooling rate calculation
 
@@ -392,7 +415,7 @@ int main() {
 	unsigned int n_sample = 40000;	//Number of the sample ions
 	ecool_paras = new EcoolRateParas(n_sample);
 	//define friction force formula
-	force_paras = new ForceParas(ForceFormula::PARKHOMCHUK);
+	force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 	//define dynamic simulation
   	double time = 60;			//Total time to simulate
   	int n_step = 120;			//Number of steps
