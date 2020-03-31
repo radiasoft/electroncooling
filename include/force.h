@@ -95,6 +95,7 @@ class ForceParas{
                    double temperature, double magnetic_field, 
                    double d_perp_e, double d_paral_e, double time_cooler,
                    double *force_tr, double *force_long, bool do_test);
+<<<<<<< HEAD
     
     //This is a wrapper for the multidimensional integrals that show up 
     // in these force calculations
@@ -102,6 +103,15 @@ class ForceParas{
                           double *xl, double *xu, size_t dim, 
                           double &result, double &error);
     
+=======
+    
+    //This is a wrapper for the multidimensional integrals that show up 
+    // in these force calculations
+    void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
+                          double *xl, double *xu, size_t dim, 
+                          double &result, double &error);
+    
+>>>>>>> 8947a02860fdcba41633e419a1ef2462ae623315
     //A 1d version of the eval integral function
     void EvalIntegral(double (*func)(double, void*), int_info &params,
                           double xl, double xu, double &result, double &error);
@@ -195,7 +205,34 @@ class Force_Budker : public ForceParas{
                            double &force_result_trans, double &force_result_long);
 };
 
+<<<<<<< HEAD
 
+=======
+class Force_Erlangen : public ForceParas{
+    private:
+        //Definitions of integrals that need to be evaluated through Monte Carlo:
+        static double fast_trans(double *k, size_t dim, void *params);
+        static double fast_long(double *k, size_t dim, void *params);
+        static double Alt_fast_trans(double *k, size_t dim, void *params);
+        static double Alt_fast_long(double *k, size_t dim, void *params);
+        static double tight_trans(double *k, size_t dim, void *params);
+        static double tight_long(double *k, size_t dim, void *params);
+        static double stretched_trans(double *k, size_t dim, void *params);
+        static double stretched_long(double *k, size_t dim, void *params); 
+ 
+    public:
+        Force_Erlangen():ForceParas(ForceFormula::ERLANGEN, -k_me_kg * pow(k_re*k_c*k_c,2),"Erlangen.txt"){};
+
+        int set_fast(bool k)      {fast_ = k; return 0;}
+        int set_tight(bool k)     {tight_ = k; return 0;}
+        int set_stretched(bool k) {stretched_ = k; return 0;}    
+    
+         virtual void force(double v_tr, double v_long, double d_perp_e,
+                            double d_paral_e, double temperature, int charge_number,
+                            double density_e, double time_cooler, double magnetic_field,
+                            double &force_result_trans, double &force_result_long);
+};
+>>>>>>> 8947a02860fdcba41633e419a1ef2462ae623315
 
 //A frequently-used case structure for switching
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_z, double *density_e,

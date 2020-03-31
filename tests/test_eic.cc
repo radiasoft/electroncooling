@@ -216,6 +216,35 @@ void BetacoolBoosterModel(ForceFormula ff)
   double rate_x, rate_y, rate_s;
             
   ForceParas *force_paras = ChooseForce(ff);
+<<<<<<< HEAD
+=======
+
+  if(force_paras->formula() == ForceFormula::ERLANGEN){
+      std::string suffix;
+      //Start with a clean slate
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(false);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(false);
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(false);
+                              
+      if(Erlangen_fast){
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_fast(true);
+          suffix += "F";
+      }
+      if(Erlangen_tight) {
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_tight(true);
+          suffix += "T";
+      }
+      if(Erlangen_stretched){
+          dynamic_cast<Force_Erlangen *>(force_paras)->set_stretched(true);
+          suffix += "S";
+      }
+      force_paras->set_filename(((std::string)"Erlangen_" + suffix + (std::string)".txt").c_str());
+      
+      //Speed this up
+      dynamic_cast<Force_Erlangen *>(force_paras)->set_calls(50000);
+      
+  }
+>>>>>>> 8947a02860fdcba41633e419a1ef2462ae623315
     
   force_paras->set_do_test(true);
   ecooling_rate(ecool_rate_paras, *force_paras, ion_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);

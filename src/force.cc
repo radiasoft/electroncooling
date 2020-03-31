@@ -108,8 +108,6 @@ void ForceParas::EvalIntegral(double (*func)(double, void*), int_info &params,do
 
 void ForceParas::EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,double *xl,double *xu,size_t dim,
                                   double &result,double &error){
-
-    //This is a wrapper for a number of triple-integrals that appear in these force calculations
     
     const gsl_rng_type *T;
     gsl_rng *r;
@@ -724,7 +722,6 @@ void Force_Budker::force(double v_tr, double v_long, double d_perp_e, double d_p
         force_result_long = 0.0;
     }
 }
-
 
     
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
