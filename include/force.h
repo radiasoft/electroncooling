@@ -41,8 +41,8 @@ class ForceParas{
     bool tight_     = false;
 
     //For the Un=magnetized model
-    bool approximate_ = true; //Use a simplification in the integration
-    bool binney_ = false; //A further simplification
+    bool approximate_ = false; //Use a simplification in the integration
+    bool binney_ = true; //A further simplification
     
  public:
     ForceFormula formula()        const {return formula_;}

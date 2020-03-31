@@ -586,6 +586,10 @@ void Force_Unmagnetized::force(double v_tr, double v_long, double d_perp_e, doub
                          int charge_number,double density_e,double time_cooler, double magnetic_field, 
                          double &force_result_trans, double &force_result_long){
 
+    if( approximate_ && binney_ ){
+         assert(false&&"Set only one Approximate or Binney (or neither) in Unmagnetized model!");
+    }
+    
     double v2 = v_tr*v_tr + v_long*v_long;
     double v_mag = sqrt(v2);
 
@@ -674,8 +678,8 @@ void Force_Unmagnetized::force(double v_tr, double v_long, double d_perp_e, doub
             //Upper limits to the variables
             double xu_triple[3] = {1., 1., 2*k_pi};    
                
-            EvalIntegral(&alt_trans_integrand,params,xl_triple,xu_triple,(size_t) 3,trans_result,trans_error);
-            EvalIntegral(&alt_long_integrand,params,xl_triple,xu_triple,(size_t) 3,long_result,long_error);
+            EvalIntegral(&full_trans_integrand,params,xl_triple,xu_triple,(size_t) 3,trans_result,trans_error);
+            EvalIntegral(&full_long_integrand,params,xl_triple,xu_triple,(size_t) 3,long_result,long_error);
             
             double constants = sqrt(2/k_pi) * f_const_ * charge_number*charge_number * density_e;
             force_result_trans = constants * trans_result / (d_perp_e*d_perp_e * d_paral_e);
