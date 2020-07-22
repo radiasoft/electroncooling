@@ -95,23 +95,14 @@ class ForceParas{
                    double temperature, double magnetic_field, 
                    double d_perp_e, double d_paral_e, double time_cooler,
                    double *force_tr, double *force_long, bool do_test);
-<<<<<<< HEAD
-    
+
     //This is a wrapper for the multidimensional integrals that show up 
     // in these force calculations
     void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
                           double *xl, double *xu, size_t dim, 
                           double &result, double &error);
     
-=======
-    
-    //This is a wrapper for the multidimensional integrals that show up 
-    // in these force calculations
-    void EvalIntegral(double (*func)(double*, size_t, void*), int_info &params,
-                          double *xl, double *xu, size_t dim, 
-                          double &result, double &error);
-    
->>>>>>> 8947a02860fdcba41633e419a1ef2462ae623315
+
     //A 1d version of the eval integral function
     void EvalIntegral(double (*func)(double, void*), int_info &params,
                           double xl, double xu, double &result, double &error);
@@ -205,9 +196,7 @@ class Force_Budker : public ForceParas{
                            double &force_result_trans, double &force_result_long);
 };
 
-<<<<<<< HEAD
-
-=======
+/*
 class Force_Erlangen : public ForceParas{
     private:
         //Definitions of integrals that need to be evaluated through Monte Carlo:
@@ -232,7 +221,7 @@ class Force_Erlangen : public ForceParas{
                             double density_e, double time_cooler, double magnetic_field,
                             double &force_result_trans, double &force_result_long);
 };
->>>>>>> 8947a02860fdcba41633e419a1ef2462ae623315
+*/
 
 //A frequently-used case structure for switching
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_z, double *density_e,
