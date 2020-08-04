@@ -13,6 +13,7 @@
 #include <random>
 #include <string>
 #include <map>
+#include <iomanip>
 
 //This object stores all optimizable variables
 // as doubles. Seems like a duplication of 
@@ -23,60 +24,67 @@
 // Gaussian search
 
 class Optimize{
-    double length_;      // in meter
-    double section_number_;
-    double magnetic_field_; // 1.0, in Tesla
-    double beta_h_;      // 10.0 in meter
-    double beta_v_;      // in meter
-    double disp_h_;      // 0.1, in meter
-    double disp_v_;
-    double alpha_h_;
-    double alpha_v_;
-    double der_disp_h_;
-    double der_disp_v_;
-    double sigma_x_; //1e-4
-    double sigma_y_; //1e-4
-    double sigma_s_; //0.15
-    double temp_tr_; //0.01
-    double temp_long_;
-    double n_electron_; //1.5, in 1e10
     
     std::vector<std::string> FitVariables;
     std::map<const std::string, double> FitStepSize;
     std::map<const std::string, double> BestFits;
+    std::map<const std::string, double> InitialValues;
     double best_fval = DBL_MAX; //Any fit will decrease this
 
     static double fit_fcn(const gsl_vector *v, void *params);
-    std::map<std::string, double> Randomize();
+    void Randomize();
+        
+  protected:
+     //Store some parameters we don't scan over,
+     // including ion beam info.
+     // It's easier to define these things in a struct
+     // because the whole thing can be passed into the 
+     // static function for the fitter.
+     struct opt_info{
+         int Z_                 = 1;
+         double m0_             = 938.272;
+         double magnetic_field_ = 1.0;    // in Tesla
+         double length_         = 130.0;  // in meter
+         double section_number_ = 1;
+         double beta_h_         = 10.0;   // 10.0 in meter
+         double beta_v_         = 10.0;   // in meter
+         double disp_h_         = 0.1;    // 0.1, in meter
+         double disp_v_         = 0.1;
+         double alpha_h_        = 0.0;
+         double alpha_v_        = 0.0;
+         double der_disp_h_     = 0.0;
+         double der_disp_v_     = 0.0;
+         double sigma_x_        = 1e-4;
+         double sigma_y_        = 1e-4;
+         double sigma_s_        = 0.15;
+         double temp_tr_        = 0.01;
+         double temp_long_      = 0.01;
+         double n_electron_     = 1.5; // in 1e10
     
+         double cool_target_    = 20.; //The time in minutes to aim for
+         
+         int n_sample           = 1e6;
+         
+         std::string lattice_filename = "eRHIC.tfs";    
+         
+         Lattice *lattice;
+         ForceParas *force_paras;
+         EcoolRateParas *ecool_paras;
+         
+         
+         std::vector<std::string> FitVariables_working;
+         std::map<const std::string, double> FitStepSize_working;
+         std::map<const std::string, double> BestFits_working;
+         std::map<const std::string, double> InitialValues_working;
+         
+        } fitter_values;
     
-     protected:
-        //Store some parameters we don't scan over,
-        // including ion beam info
-        struct opt_info{
-            int Z = 1;
-            double m0 = 938.272;
-            std::string lattice_filename;    
-        };
-    
+    //opt_info fitter_values;
     
     public:
-        double length()const {return length_;}
-        double section_number()const {return section_number_;}
-        double magnetic_field()const {return magnetic_field_;}
-        double beta_h()const {return beta_h_;}
-        double beta_v()const {return beta_v_;}
-        double alpha_h()const {return alpha_h_;}
-        double alpha_v()const {return alpha_v_;}
-        double disp_h()const {return disp_h_;}
-        double disp_v()const {return disp_v_;}
-        double der_disp_h()const {return der_disp_h_;}
-        double der_disp_v()const {return der_disp_v_;}
-        double sigma_x()const {return sigma_x_;}
-        double sigma_y()const {return sigma_y_;}
-        double sigma_s()const {return sigma_s_;}
-        double temp_tr()const {return temp_tr_;}
-        double temp_long()const {return temp_long_;}
+
+        void InitializeFitter(std::vector<std::string>, std::vector<double>,std::string filename);
+    
         
         void OptimizeTrial();
         void ManyTrials();

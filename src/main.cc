@@ -10,6 +10,7 @@
 #include "muParserDLL.h"
 #include "ring.h"
 #include "ui.h"
+#include "optimize.h"
 
 using std::string;
 
@@ -28,7 +29,7 @@ extern muParserHandle_t math_parser;
 //extern std::vector<std::string> ion_pars;
 
 
-enum class Test {IBS, ECOOL, BOTH, DYNAMICIBS, DYNAMICECOOL, DYNAMICBOTH, DYNAMICIBSBUNCHED};
+enum class Test {OPTIMIZE, IBS, ECOOL, BOTH, DYNAMICIBS, DYNAMICECOOL, DYNAMICBOTH, DYNAMICIBSBUNCHED};
 
 int main(int argc, char** argv) {
 
@@ -161,8 +162,33 @@ int main(int argc, char** argv) {
 
     }
     else {
-        Test test = Test::DYNAMICECOOL;
+        Test test = Test::OPTIMIZE;
         switch (test){
+            case Test::OPTIMIZE:{
+                
+                Optimize Oppo;
+                
+                //Choose the parameters to fit.
+                std::vector<std::string> Params;
+                Params.push_back("sigma_x");
+                Params.push_back("sigma_y");
+                
+                //Set their initial values (must be in the same order as above)
+                std::vector<double> InitialValues;
+                InitialValues.push_back(2e-5);
+                InitialValues.push_back(2e-5);
+                
+                Oppo.InitializeFitter(Params,InitialValues, "eRHIC.tfs");
+                
+                //Oppo.OptimizeTrial();
+                Oppo.ManyTrials();
+                
+                
+                break;
+            }
+                
+                
+                
             case Test::BOTH: {
                 // define proton beam;
                 double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
