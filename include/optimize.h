@@ -48,8 +48,8 @@ class Optimize{
          double section_number_ = 1;
          double beta_h_         = 10.0;   // 10.0 in meter
          double beta_v_         = 10.0;   // in meter
-         double disp_h_         = 0.1;    // 0.1, in meter
-         double disp_v_         = 0.1;
+         double disp_h_         = 0.0;    // 0.1, in meter
+         double disp_v_         = 0.0;
          double alpha_h_        = 0.0;
          double alpha_v_        = 0.0;
          double der_disp_h_     = 0.0;
@@ -65,7 +65,12 @@ class Optimize{
          
          int n_sample           = 1e6;
          
+         int n_trials           = 15;
+         
          std::string lattice_filename = "eRHIC.tfs";    
+         //ForceFormula ff = ForceFormula::PARKHOMCHUK;
+        ForceFormula ff = ForceFormula::BUDKER;
+//        ForceFormula ff = ForceFormula::UNMAGNETIZED;
          
          Lattice *lattice;
          ForceParas *force_paras;
@@ -83,11 +88,13 @@ class Optimize{
     
     public:
 
-        void InitializeFitter(std::vector<std::string>, std::vector<double>,std::string filename);
+        void InitializeFitter(std::vector<std::string>, std::vector<double>, Lattice *);
     
         
         void OptimizeTrial();
         void ManyTrials();
+        //A function to access the optimization from the UI 
+        int Optimize_From_UI(std::vector<std::string> Params, std::vector<double> InitialValues, Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring);
     
         Optimize(){};
     

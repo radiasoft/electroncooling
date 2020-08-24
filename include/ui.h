@@ -12,6 +12,7 @@
 #include "ecooling.h"
 #include "math_parser.h"
 #include "ring.h"
+#include "optimize.h"
 
 //enum class sections{SECTION_ION, SECTION_RING, SECTION_COOLER};
 //enum class section_ion{CHARGE_NUMBER, MASS, KINETIC_ENERGY, NORM_EMIT_X, NORM_EMIT_Y, MOMENTUM_SPREAD, PARTICLE_NUMBER,

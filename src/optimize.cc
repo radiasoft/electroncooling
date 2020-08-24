@@ -6,7 +6,7 @@ extern IBSSolver * ibs_solver;
 //extern ForceParas * force_paras;
 extern Luminosity *luminosity_paras;
 
-void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV,std::string filename){
+void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice){
 
     assert(Params.size() != IV.size() && "Mismatch in optimization parameters!");
     
@@ -15,25 +15,29 @@ void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<dou
     for(int i=0;i<Params.size();i++) InitialValues[FitVariables[i]] = IV[i];
     
     //Hard-coding this here, temporarily(ish)
+    // Tuning these parameters takes some care. If the step size
+    // is too small, the optimizer will slow-walk that parameter.
+    // If it's too big, it might step over the minimum.
     FitStepSize.clear();
-    FitStepSize["bfield"]    = 0.1;
-    FitStepSize["sigma_x"]   = 5e-5;
-    FitStepSize["sigma_y"]   = 5e-5;
-    FitStepSize["sigma_s"]   = 5e-3;
-    FitStepSize["beta_h"]    = 0.5;
-    FitStepSize["beta_v"]    = 0.5;
-    FitStepSize["disp_h"]    = 0.1;
-    FitStepSize["disp_v"]    = 0.1;
-    FitStepSize["temp_tr"]   = 0.01;
-    FitStepSize["temp_long"] = 0.01;
+    FitStepSize["bfield"]     = 0.1;
+    FitStepSize["sigma_x"]    = 5e-5;
+    FitStepSize["sigma_y"]    = 5e-5;
+    FitStepSize["sigma_s"]    = 5e-3;
+    FitStepSize["beta_h"]     = 0.5;
+    FitStepSize["beta_v"]     = 0.5;
+    FitStepSize["disp_h"]     = 0.1;
+    FitStepSize["disp_v"]     = 0.1;
+    FitStepSize["temp_tr"]    = 0.001;
+    FitStepSize["temp_long"]  = 0.001;
+    FitStepSize["n_electron"] = 0.1;
     
     //Parse the lattice file once, store it for each 
     // call to fit_fcn
-    fitter_values.lattice = new Lattice(filename);
+    fitter_values.lattice = lattice;
 
     //Initialize other classes that don't change
     fitter_values.ecool_paras = new EcoolRateParas(fitter_values.n_sample);
-    fitter_values.force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
+    fitter_values.force_paras = ChooseForce(fitter_values.ff);//ForceFormula::PARKHOMCHUK);
     
     //Now that we've stored the user's input values,
     // copy to a 'working' version that the optimizing function will use
@@ -50,7 +54,7 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     //Depending on the values that are passed to the 
     // optimizer, overwrite our set values
     
-    //Set values come from the object...
+    //Fixed values for params come from the object...
     double magnetic_field = p->magnetic_field_;
     double sigma_x  = p->sigma_x_; 
     double sigma_y  = p->sigma_y_; 
@@ -70,26 +74,27 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     std::vector<std::string> FV = p->FitVariables_working;
     
     // Then overwrite the set values with the values the fitter is trying:
-    if(IV.find("bfield")  != IV.end() ) magnetic_field = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "bfield")));
-    if(IV.find("sigma_x") != IV.end() )        sigma_x = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_x"))); 
-    if(IV.find("sigma_y") != IV.end() )        sigma_y = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_y")));
-    if(IV.find("sigma_s") != IV.end() )        sigma_s = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_s"))); 
-    if(IV.find("beta_h")  != IV.end() )         beta_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "beta_h")));
-    if(IV.find("beta_v")  != IV.end() )         beta_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "beta_v")));
-    if(IV.find("disp_h")  != IV.end() )          dis_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_h"))); 
-    if(IV.find("disp_v")  != IV.end() )          dis_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_v"))); 
-    if(IV.find("temp_tr") != IV.end() )         tmp_tr = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "temp_tr"))); 
-    if(IV.find("temp_long") != IV.end() )     tmp_long = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "temp_long"))); 
+    if(IV.find("bfield")     != IV.end() ) magnetic_field = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "bfield")));
+    if(IV.find("sigma_x")    != IV.end() )        sigma_x = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_x"))); 
+    if(IV.find("sigma_y")    != IV.end() )        sigma_y = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_y")));
+    if(IV.find("sigma_s")    != IV.end() )        sigma_s = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_s"))); 
+    if(IV.find("beta_h")     != IV.end() )         beta_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "beta_h")));
+    if(IV.find("beta_v")     != IV.end() )         beta_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "beta_v")));
+    if(IV.find("disp_h")     != IV.end() )          dis_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_h"))); 
+    if(IV.find("disp_v")     != IV.end() )          dis_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_v"))); 
+    if(IV.find("temp_tr")    != IV.end() )         tmp_tr = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "temp_tr"))); 
+    if(IV.find("temp_long")  != IV.end() )       tmp_long = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "temp_long"))); 
+    if(IV.find("n_electron") != IV.end() )     n_electron = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "n_electron")));
        
-    /*
+    
     //Punish unphysical parameters
-    if (magnetic_field < 0.0 || 
+    if (magnetic_field < 0.0 ||
         sigma_x < 0.0 || sigma_y < 0.0 || sigma_s < 0.0 ||
-        tmp_tr < 1e-5 || tmp_long < 1e-5 ||
-        n_electron > 2.0){
+        tmp_tr < 1e-6 || tmp_long < 1e-6 || n_electron > 5.0){
+        std::cout<<"Unphysical"<<std::endl;
         return 100000.0;
     }
-    */
+    
     
     //We're really only varying the scale factor
     // TODO: Convert this to nanocoulombs
@@ -133,10 +138,13 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     EBeam e_beam(gamma_e, tmp_tr, tmp_long, gaussian_bunch);
 
     double rate_x, rate_y, rate_s;
-    ecooling_rate(*(p->ecool_paras), *(p->force_paras), p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+    ecooling_rate(*(p->ecool_paras), *(p->force_paras),
+                  p_beam, cooler, e_beam, ring,
+                  rate_x, rate_y, rate_s);
      
     //NOTE: We're only cooling in the y direction here
-    if(isnan(rate_y)){
+    // Chuck it if we get a heating rate (rate_y>0)
+    if(rate_y > 0.0 || isnan(rate_y)){
         return 100000.0;
     }
     else{
@@ -151,13 +159,24 @@ void Optimize::Randomize()
     std::default_random_engine generator (seed);
 
     //TODO: Stash these RMS values in a Map too
-    std::normal_distribution<double> bfield_distribution (fitter_values.magnetic_field_,3.0);
-    std::normal_distribution<double> sigma_distribution (fitter_values.sigma_x_,1e-4);
-    std::normal_distribution<double> sigma_s_distribution (fitter_values.sigma_s_,0.2);
-    std::normal_distribution<double> beta_distribution (fitter_values.beta_h_,10.);
-    std::normal_distribution<double> disp_distribution (fitter_values.disp_h_,0.3);
-    std::normal_distribution<double> temp_distribution (fitter_values.temp_tr_,0.01);
-    std::normal_distribution<double> e_distribution (fitter_values.n_electron_,0.5);
+    std::normal_distribution<double> bfield_distribution  (InitialValues["bfield"],3.0);
+    std::normal_distribution<double> sigma_distribution   (InitialValues["sigma_x"],1e-4);
+    std::normal_distribution<double> sigma_s_distribution (InitialValues["sigma_s"],0.2);
+    std::normal_distribution<double> beta_distribution    (InitialValues["beta_h"],10.);
+    std::normal_distribution<double> disp_distribution    (InitialValues["disp_h"],0.3);
+    std::normal_distribution<double> temp_distribution    (InitialValues["temp_tr"],0.01);
+    std::normal_distribution<double> e_distribution       (InitialValues["n_electron"],0.5);
+    
+    //Burn-in the random number generators
+    for(int i=0;i<500;i++){
+        bfield_distribution(generator);
+        sigma_distribution(generator);
+        sigma_s_distribution(generator);
+        beta_distribution(generator);
+        disp_distribution(generator);
+        temp_distribution(generator);
+        e_distribution(generator);
+    }
 
     //Select random values, but add some constraints
     if(std::find(FitVariables.begin(),FitVariables.end(),"bfield") != FitVariables.end() ){
@@ -168,13 +187,13 @@ void Optimize::Randomize()
     
     if(std::find(FitVariables.begin(),FitVariables.end(),"sigma_x") != FitVariables.end() ){
         double sigma_x_tmp = sigma_distribution(generator);
-        while(sigma_x_tmp <= 1e-4) sigma_x_tmp = sigma_distribution(generator);
+        while(sigma_x_tmp <= 1e-5) sigma_x_tmp = sigma_distribution(generator);
         fitter_values.sigma_x_ = sigma_x_tmp;
     }
 
     if(std::find(FitVariables.begin(),FitVariables.end(),"sigma_y") != FitVariables.end() ){
         double sigma_y_tmp = sigma_distribution(generator);
-        while(sigma_y_tmp <= 1e-4) sigma_y_tmp = sigma_distribution(generator);
+        while(sigma_y_tmp <= 1e-5) sigma_y_tmp = sigma_distribution(generator);
         fitter_values.sigma_y_ = sigma_y_tmp;
     }
 
@@ -210,19 +229,19 @@ void Optimize::Randomize()
 
     if(std::find(FitVariables.begin(),FitVariables.end(),"temp_tr") != FitVariables.end() ){
         double temp_tr_tmp = temp_distribution(generator);
-        while(temp_tr_tmp <= 1e-4) temp_tr_tmp = temp_distribution(generator);
+        while(temp_tr_tmp < 1e-5) temp_tr_tmp = temp_distribution(generator);
         fitter_values.temp_tr_ = temp_tr_tmp;
     }
 
     if(std::find(FitVariables.begin(),FitVariables.end(),"temp_long") != FitVariables.end() ){
         double temp_long_tmp = temp_distribution(generator);
-        while(temp_long_tmp <= 1e-4) temp_long_tmp = temp_distribution(generator);
+        while(temp_long_tmp < 1e-5) temp_long_tmp = temp_distribution(generator);
         fitter_values.temp_long_ = temp_long_tmp;
     }
     
     if(std::find(FitVariables.begin(),FitVariables.end(),"n_electron") != FitVariables.end() ){
         double n_electron_tmp = e_distribution(generator);
-        while( n_electron_tmp <= 1e-4) n_electron_tmp = e_distribution(generator);
+        while( n_electron_tmp <= 0) n_electron_tmp = e_distribution(generator);
         fitter_values.n_electron_ = n_electron_tmp; 
     }
     /*
@@ -307,7 +326,7 @@ void Optimize::OptimizeTrial(){
     
 void Optimize::ManyTrials()
 {                   
-    for(int i = 0;i<150;i++){
+    for(int i = 0;i<n_trials;i++){
         std::cout<<"Random Iteration "<<i<<std::endl;
         Randomize();
         OptimizeTrial();
@@ -325,4 +344,19 @@ void Optimize::ManyTrials()
     //        best_beta_h<<" "<<best_beta_v<<" "<< best_disp_h<<" "<<best_disp_v<<" "<<
     //        best_temp_tr<<" "<<best_temp_long<<" "<< best_n_electron<<" "<< best_fval<<"\n";
     //myfile.close();    
+}
+
+
+int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<double>InitialValues, Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring){
+    
+    
+    Lattice *lattice = ring.lattice_; //"eRHIC.tfs"
+    
+    //Params is a vector of string ID's for parameters
+    //InitialValues is a vector of doubles, matched 1:1 with the params
+    
+    this->InitializeFitter(Params,InitialValues, lattice);
+    this->ManyTrials();
+        
+    return 1;
 }

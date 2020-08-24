@@ -38,7 +38,7 @@ muParserHandle_t math_parser = NULL;
 std::vector<string> ION_ARGS = {"CHARGE_NUMBER", "MASS", "KINETIC_ENERGY", "NORM_EMIT_X", "NORM_EMIT_Y",
     "MOMENTUM_SPREAD", "PARTICLE_NUMBER", "RMS_BUNCH_LENGTH"};
 std::vector<string> RUN_COMMANDS = {"CREATE_ION_BEAM", "CREATE_RING", "CREATE_E_BEAM", "CREATE_COOLER",
-    "CALCULATE_IBS", "CALCULATE_ECOOL", "TOTAL_EXPANSION_RATE", "RUN_SIMULATION", "CALCULATE_LUMINOSITY"};
+    "CALCULATE_IBS", "CALCULATE_ECOOL", "TOTAL_EXPANSION_RATE", "RUN_SIMULATION", "CALCULATE_LUMINOSITY", "OPTIMIZE_COOLING"};
 std::vector<string> RING_ARGS = {"LATTICE", "QX", "QY", "QS", "GAMMA_TR", "RF_V", "RF_H", "RF_PHI"};
 std::vector<string> IBS_ARGS = {"NU","NV","NZ","LOG_C","COUPLING","MODEL","IBS_BY_ELEMENT"};
 std::vector<string> COOLER_ARGS = {"LENGTH", "SECTION_NUMBER", "MAGNETIC_FIELD", "BET_X", "BET_Y", "DISP_X", "DISP_Y",
@@ -801,6 +801,96 @@ void run_simulation(Set_ptrs &ptrs) {
     dynamic(*ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);
 }
 
+void optimize_cooling(Set_ptrs &ptrs) {
+    assert(ptrs.dynamic_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR SIMULATION!");
+
+    bool ibs = ptrs.dynamic_ptr->ibs;
+    bool ecool = ptrs.dynamic_ptr->ecool;
+    bool fixed_bunch_length = ptrs.dynamic_ptr->fixed_bunch_length;
+
+
+        if(fixed_bunch_length) {
+        assert(ptrs.dynamic_ptr->model==DynamicModel::RMS&&"ERROR: THE PARAMETER FIXED_BUNCH_LENGTH WORKS ONLY FOR RMS MODEL");
+        assert(ptrs.ring->rf.gamma_tr>0&&"ERROR: DEFINE THE TRANSITION GAMMA OF THE RING WHEN THE PARAMETER FIXED_BUNCH_LENGTH IS CHOSEN");
+    }
+    double t = ptrs.dynamic_ptr->time;
+    int n_step = ptrs.dynamic_ptr->n_step;
+    int n_sample = ptrs.dynamic_ptr->n_sample;
+    int output_intvl = ptrs.dynamic_ptr->output_intvl;
+    int save_ptcl_intvl = ptrs.dynamic_ptr->save_ptcl_intvl;
+
+    if(ptrs.dynamic_ptr->model == DynamicModel::TURN_BY_TURN) {
+        double dt = ptrs.ring->circ()/(ptrs.ion_beam->beta()*k_c);
+        if (n_step>0) {
+            t = n_step * dt;
+        }
+        else if (t>0) {
+            n_step = ceil(t/dt);
+            t = n_step * dt;
+        }
+    }
+
+    assert(t>0 && n_step>0 && output_intvl>0 && "WRONG PARAMETERS FOR SIMULAITON!");
+    dynamic_paras = new DynamicParas(t, n_step, ibs, ecool);
+    dynamic_paras->set_model(ptrs.dynamic_ptr->model);
+    dynamic_paras->set_n_sample(n_sample);
+    dynamic_paras->set_fixed_bunch_length(fixed_bunch_length);
+    if (output_intvl>1) dynamic_paras->set_output_intvl(output_intvl);
+    if (save_ptcl_intvl>0) dynamic_paras->set_ion_save(save_ptcl_intvl);
+    dynamic_paras->set_model(ptrs.dynamic_ptr->model);
+    dynamic_paras->set_output_file(ptrs.dynamic_ptr->filename);
+    if (ptrs.dynamic_ptr->reset_time) dynamic_paras->set_reset_time(true);
+    else dynamic_paras->set_reset_time(false);
+    if (ptrs.dynamic_ptr->overwrite) dynamic_paras->set_overwrite(true);
+    else dynamic_paras->set_overwrite(false);
+    if (ptrs.dynamic_ptr->calc_luminosity) dynamic_paras->set_calc_lum(true);
+    else dynamic_paras->set_calc_lum(false);
+    
+    if(dynamic_paras->model()==DynamicModel::PARTICLE && !ecool)
+        assert(n_sample>0 && "SET N_SAMPLE FOR SIMULATION!");
+
+    assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE SIMULATION!");
+    
+    if (ecool) {
+        assert(ptrs.e_beam.get()!=nullptr && "NEED TO CREATE THE E_BEAM BEFORE SIMULATION!");
+        assert(ptrs.cooler.get()!=nullptr && "NEED TO CREATE THE COOLER BEFORE SIMULATION!");
+        assert(ptrs.ecool_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR ELECTRON COOLING RATE CALCULATION!");
+        if (n_sample<=0) {
+            n_sample = ptrs.ecool_ptr->n_sample;
+            assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
+            dynamic_paras->set_n_sample(n_sample);
+        }
+        ecool_paras = new EcoolRateParas(n_sample);
+        force_paras = ChooseForce(ptrs.ecool_ptr->force);
+    }
+
+    if(ibs) {
+        assert(ptrs.ibs_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR IBS RATE CALCULATION!");
+
+        calculate_ibs(ptrs, false);
+    }
+
+    if (ibs && !ecool && dynamic_paras->model()==DynamicModel::PARTICLE) {
+        assert(ptrs.dynamic_ptr->ref_bet_x>0 && ptrs.dynamic_ptr->ref_bet_y>0 && "WRONG VALUE FOR REFERENCE TWISS PARAMETERS");
+        dynamic_paras->twiss_ref.bet_x = ptrs.dynamic_ptr->ref_bet_x;
+        dynamic_paras->twiss_ref.bet_y = ptrs.dynamic_ptr->ref_bet_y;
+        dynamic_paras->twiss_ref.alf_x = ptrs.dynamic_ptr->ref_alf_x;
+        dynamic_paras->twiss_ref.alf_y = ptrs.dynamic_ptr->ref_alf_y;
+        dynamic_paras->twiss_ref.disp_x = ptrs.dynamic_ptr->ref_disp_x;
+        dynamic_paras->twiss_ref.disp_y = ptrs.dynamic_ptr->ref_disp_y;
+        dynamic_paras->twiss_ref.disp_dx = ptrs.dynamic_ptr->ref_disp_dx;
+        dynamic_paras->twiss_ref.disp_dy = ptrs.dynamic_ptr->ref_disp_dy;
+    }
+
+    Optimize *Oppo;
+    
+    //Params is a vector of string ID's for parameters
+    //InitialValues is a vector of doubles, matched 1:1 with the params
+    
+    Oppo->Optimize_From_UI(Params, InitialValues, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);    
+}
+
+
 void run(std::string &str, Set_ptrs &ptrs) {
     str = trim_blank(str);
     str = trim_tab(str);
@@ -831,6 +921,9 @@ void run(std::string &str, Set_ptrs &ptrs) {
     }
     else if(str == "RUN_SIMULATION") {
         run_simulation(ptrs);
+    }
+    else if(str == "OPTIMIZE_COOLING") {
+        optimize_cooling(ptrs);
     }
     else {
         assert(false&&"Wrong arguments in section_run!");
