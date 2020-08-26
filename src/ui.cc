@@ -64,6 +64,8 @@ std::vector<string> SCRATCH_ARGS = {"VL_EMIT_NX", "VL_EMIT_NY", "VL_MOMENTUM_SPR
 std::vector<string> LUMINOSITY_ARGS = {"DISTANCE_X", "DISTANCE_Y", "PARTICLE_NUMBER_1", "PARTICLE_NUMBER_2", "FREQUENCY",
     "BEAM_SIZE_X_1", "BEAM_SIZE_X_2", "BEAM_SIZE_Y_1", "BEAM_SIZE_Y_2", "BET_X_1", "BET_X_2", "BET_Y_1",
     "BET_Y_2", "GEO_EMIT_X_1", "GEO_EMIT_X_2", "GEO_EMIT_Y_1", "GEO_EMIT_Y_2", "USE_ION_EMITTANCE"};
+std::vector<string> OPTIMIZATION_ARGS = {"sigma_x","sigma_y","sigma_z","n_electron","bfield","sigma_s","beta_v","beta_h",
+                                        "alpha_v","alpha_h","disp_v","disp_h","temp_tr","temp_long"};
 
 std::map<std::string, Section> sections{
     {"SECTION_ION",Section::SECTION_ION},
@@ -75,7 +77,8 @@ std::map<std::string, Section> sections{
     {"SECTION_E_BEAM", Section::SECTION_E_BEAM},
     {"SECTION_ECOOL", Section::SECTION_ECOOL},
     {"SECTION_SIMULATION",Section::SECTION_SIMULATION},
-    {"SECTION_LUMINOSITY",Section::SECTION_LUMINOSITY}
+    {"SECTION_LUMINOSITY",Section::SECTION_LUMINOSITY},
+    {"SECTION_OPTIMIZATION",Section::SECTION_OPTIMIZATION}
 };
 
 // Remove everything from the first "#" in the string
@@ -801,13 +804,76 @@ void run_simulation(Set_ptrs &ptrs) {
     dynamic(*ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);
 }
 
-void optimize_cooling(Set_ptrs &ptrs) {
+void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     assert(ptrs.dynamic_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR SIMULATION!");
+
+    assert(cooler_args!=nullptr && "SECTION_COOLER MUST BE CLAIMED!");
+    string::size_type idx = str.find("=");
+    assert(idx!=string::npos && "WRONG COMMAND IN SECTION_OPTIMIZER!");
+    string var = str.substr(0, idx);
+    string val = str.substr(idx+1);
+    var = trim_blank(var);
+    var = trim_tab(var);
+    val = trim_blank(val);
+    val = trim_tab(val);
+    
+    
+    if (var=="SIGMA_X") {
+        opt_args->mod_names.push_back("sigma_x");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="SIGMA_Y") {
+        opt_args->mod_names.push_back("sigma_y");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="SIGMA_S") {
+        opt_args->mod_names.push_back("sigma_s");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="N_ELECTRON") {
+        opt_args->mod_names.push_back("n_electron");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="BETA_V") {
+        opt_args->mod_names.push_back("beta_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="BETA_H") {
+        opt_args->mod_names.push_back("beta_h");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="TEMP_TR"){
+        opt_args->mod_names.push_back("temp_tr");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="TEMP_LONG"){
+        opt_args->mod_names.push_back("temp_long");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_V") {
+        opt_args->mod_names.push_back("disp_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_H") {
+    opt_args->mod_names.push_back("disp_h");
+        opt_args->initial_values.push_back(std::stod(val));    
+    }
+    else if (var=="BFIELD") {
+        opt_args->mod_names.push_back("bfield");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+        
+}    
+
+
+void optimize_cooling(Set_ptrs &ptrs) {
+    //Set all the same parameters that run_simulation does, plus
+    // set the parameters and values from the optimization section
+    assert(ptrs.optimizer_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR OPTIMIZATION!");
 
     bool ibs = ptrs.dynamic_ptr->ibs;
     bool ecool = ptrs.dynamic_ptr->ecool;
     bool fixed_bunch_length = ptrs.dynamic_ptr->fixed_bunch_length;
-
 
         if(fixed_bunch_length) {
         assert(ptrs.dynamic_ptr->model==DynamicModel::RMS&&"ERROR: THE PARAMETER FIXED_BUNCH_LENGTH WORKS ONLY FOR RMS MODEL");
@@ -830,7 +896,7 @@ void optimize_cooling(Set_ptrs &ptrs) {
         }
     }
 
-    assert(t>0 && n_step>0 && output_intvl>0 && "WRONG PARAMETERS FOR SIMULAITON!");
+    assert(t>0 && n_step>0 && output_intvl>0 && "WRONG PARAMETERS FOR OPTIMIZATION!");
     dynamic_paras = new DynamicParas(t, n_step, ibs, ecool);
     dynamic_paras->set_model(ptrs.dynamic_ptr->model);
     dynamic_paras->set_n_sample(n_sample);
@@ -881,13 +947,16 @@ void optimize_cooling(Set_ptrs &ptrs) {
         dynamic_paras->twiss_ref.disp_dx = ptrs.dynamic_ptr->ref_disp_dx;
         dynamic_paras->twiss_ref.disp_dy = ptrs.dynamic_ptr->ref_disp_dy;
     }
+    // End of the region that's copied from run_simulation
 
-    Optimize *Oppo;
+    Optimize *Oppo = new Optimize();
+
+    //Arg Params is a vector of string ID's for parameters,
+    // arg InitialValues is a vector of doubles, matched 1:1 with the params.
+    // This is done with vectors to allow for a variable number of
+    // floating parameters.
     
-    //Params is a vector of string ID's for parameters
-    //InitialValues is a vector of doubles, matched 1:1 with the params
-    
-    Oppo->Optimize_From_UI(Params, InitialValues, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);    
+    Oppo->Optimize_From_UI(ptrs.optimizer_ptr->mod_names, ptrs.optimizer_ptr->initial_values, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);    
 }
 
 

@@ -34,6 +34,9 @@ class Optimize{
     static double fit_fcn(const gsl_vector *v, void *params);
     void Randomize();
         
+    int n_trials = 15;
+         
+    
   protected:
      //Store some parameters we don't scan over,
      // including ion beam info.
@@ -65,7 +68,6 @@ class Optimize{
          
          int n_sample           = 1e6;
          
-         int n_trials           = 15;
          
          std::string lattice_filename = "eRHIC.tfs";    
          //ForceFormula ff = ForceFormula::PARKHOMCHUK;

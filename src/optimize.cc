@@ -115,8 +115,8 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
                 dp_p0, sigma_s0, N_ptcl);
 
     // The lattice is defined once in initialization & we just pass the reference around
-
     Lattice lattice = *(p->lattice);
+
     //Define the ring
     Ring ring(lattice, p_beam);
 
@@ -354,8 +354,13 @@ int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<doub
     
     //Params is a vector of string ID's for parameters
     //InitialValues is a vector of doubles, matched 1:1 with the params
+
+    std::cout<<Params.size()<<std::endl;
+    for(int i=0;i<Params.size();i++){
+        std::cout<<Params[i]<<" "<<InitialValues[i]<<" "<<std::endl;
+    }
     
-    this->InitializeFitter(Params,InitialValues, lattice);
+    this->InitializeFitter(Params, InitialValues, lattice);
     this->ManyTrials();
         
     return 1;

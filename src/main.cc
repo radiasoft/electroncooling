@@ -84,6 +84,10 @@ int main(int argc, char** argv) {
                                 if (ptrs.luminosity_ptr.get() == nullptr) ptrs.luminosity_ptr.reset(new Set_luminosity());
                                 break;
                             }
+                            case Section::SECTION_OPTIMIZATION: {
+                                if (ptrs.optimizer_ptr.get() == nullptr) ptrs.optimizer_ptr.reset(new Set_optimizer());
+                                break;
+                            }
                             case Section::SECTION_SIMULATION: {
                                 if (ptrs.dynamic_ptr.get() == nullptr) ptrs.dynamic_ptr.reset(new Set_dynamic());
                                 break;
@@ -144,6 +148,10 @@ int main(int argc, char** argv) {
                                 set_simulation(line, ptrs.dynamic_ptr.get());
                                 break;
                             }
+                            case Section::SECTION_OPTIMIZATION: {
+                                define_optimizer(line, ptrs.optimizer_ptr.get());
+                                break;
+                            }
                             case Section::SECTION_RUN: {
                                 run(line, ptrs);
                                 break;
@@ -197,9 +205,9 @@ int main(int argc, char** argv) {
                 InitialValues.push_back(0.01);
                 
                 
-                Lattice = Lattice("eRHIC.tfs");
+                Lattice *l = new Lattice("eRHIC.tfs");
                 
-                Oppo.InitializeFitter(Params, InitialValues, Lattice);
+                Oppo.InitializeFitter(Params, InitialValues, l);
                 
 //                sigma_x: 0.00078195 sigma_y: 0.00032111 n_electron: 3.8753 bfield: 3.257 Score: 4.9602e-06
                 

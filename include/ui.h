@@ -144,6 +144,12 @@ struct Set_luminosity{
     bool use_ion_emittance = true;
 };
 
+struct Set_optimizer{
+    std::vector<std::string> mod_names;
+    std::vector<double> initial_values;
+};
+
+
 class Set_ptrs{
  public:
      std::vector<double> ibs_rate = {0,0,0};
@@ -165,12 +171,13 @@ class Set_ptrs{
      std::unique_ptr<ForceParas> force_paras = nullptr;
      std::unique_ptr<Set_dynamic> dynamic_ptr = nullptr;
      std::unique_ptr<Set_luminosity> luminosity_ptr = nullptr;
+     std::unique_ptr<Set_optimizer> optimizer_ptr = nullptr;
 //     std::unique_ptr<Tunes> tunes = nullptr;
 //     std::unique_ptr<RF> rf = nullptr;
 };
 
 enum class Section{NONE, SECTION_ION, SECTION_RING, SECTION_COOLER, SECTION_RUN, SECTION_IBS, SECTION_SCRATCH,
-    SECTION_E_BEAM_SHAPE, SECTION_E_BEAM, SECTION_ECOOL, SECTION_SIMULATION, SECTION_LUMINOSITY};
+    SECTION_E_BEAM_SHAPE, SECTION_E_BEAM, SECTION_ECOOL, SECTION_SIMULATION, SECTION_LUMINOSITY, SECTION_OPTIMIZATION};
 
 std::string remove_comments(std::string input_line);
 std::string trim_blank(std::string input_line);
@@ -185,6 +192,8 @@ void define_cooler(std::string &str, Set_cooler *cooler_args);
 void create_cooler(Set_ptrs &ptrs);
 void define_e_beam(std::string &str, Set_e_beam *e_beam_args);
 void set_luminosity(string &str, Set_luminosity *lum_args);
+void define_optimizer(string &str, Set_optimizer *opt_args);
+void optimize_cooling(Set_ptrs &ptrs);
 void set_ecool(std::string &str, Set_ecool *ecool_args);
 void set_section_run(Set_ptrs &ptrs);
 void set_simulation(std::string &str, Set_dynamic *dynamic_args);
