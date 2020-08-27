@@ -842,6 +842,14 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
         opt_args->mod_names.push_back("beta_h");
         opt_args->initial_values.push_back(std::stod(val));
     }
+    else if (var=="ALPHA_V") {
+        opt_args->mod_names.push_back("alpha_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="ALPHA_H") {
+        opt_args->mod_names.push_back("alpha_h");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
     else if (var=="TEMP_TR"){
         opt_args->mod_names.push_back("temp_tr");
         opt_args->initial_values.push_back(std::stod(val));
@@ -856,6 +864,14 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     }
     else if (var=="DISP_H") {
     opt_args->mod_names.push_back("disp_h");
+        opt_args->initial_values.push_back(std::stod(val));    
+    }
+    else if (var=="DISP_DER_V") {
+        opt_args->mod_names.push_back("disp_der_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_DER_H") {
+    opt_args->mod_names.push_back("disp_der_h");
         opt_args->initial_values.push_back(std::stod(val));    
     }
     else if (var=="BFIELD") {

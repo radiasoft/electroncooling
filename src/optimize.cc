@@ -6,7 +6,7 @@ extern IBSSolver * ibs_solver;
 //extern ForceParas * force_paras;
 extern Luminosity *luminosity_paras;
 
-void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice){
+void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice, Beam *ion){
 
     assert(Params.size() != IV.size() && "Mismatch in optimization parameters!");
     
@@ -25,8 +25,12 @@ void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<dou
     FitStepSize["sigma_s"]    = 5e-3;
     FitStepSize["beta_h"]     = 0.5;
     FitStepSize["beta_v"]     = 0.5;
+    FitStepSize["alpha_h"]    = 0.5;
+    FitStepSize["alpha_v"]    = 0.5;
     FitStepSize["disp_h"]     = 0.1;
     FitStepSize["disp_v"]     = 0.1;
+    FitStepSize["disp_der_h"] = 0.1;
+    FitStepSize["disp_der_v"] = 0.1;
     FitStepSize["temp_tr"]    = 0.001;
     FitStepSize["temp_long"]  = 0.001;
     FitStepSize["n_electron"] = 0.1;
@@ -35,6 +39,9 @@ void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<dou
     // call to fit_fcn
     fitter_values.lattice = lattice;
 
+    //Parse the ion beam that's pre-defined
+    fitter_values.beam = ion;
+    
     //Initialize other classes that don't change
     fitter_values.ecool_paras = new EcoolRateParas(fitter_values.n_sample);
     fitter_values.force_paras = ChooseForce(fitter_values.ff);//ForceFormula::PARKHOMCHUK);
@@ -61,8 +68,12 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     double sigma_s  = p->sigma_s_; 
     double beta_h   = p->beta_h_; 
     double beta_v   = p->beta_v_; 
+    double alpha_h  = p->alpha_h_; 
+    double alpha_v  = p->alpha_v_; 
     double dis_h    = p->disp_h_; 
     double dis_v    = p->disp_v_; 
+    double dis_der_h= p->disp_der_h_; 
+    double dis_der_v= p->disp_der_v_; 
     double tmp_tr   = p->temp_tr_;
     double tmp_long = p->temp_long_;
     double n_electron = p->n_electron_;
@@ -80,8 +91,12 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     if(IV.find("sigma_s")    != IV.end() )        sigma_s = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "sigma_s"))); 
     if(IV.find("beta_h")     != IV.end() )         beta_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "beta_h")));
     if(IV.find("beta_v")     != IV.end() )         beta_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "beta_v")));
+    if(IV.find("alpha_h")    != IV.end() )        alpha_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "alpha_h")));
+    if(IV.find("alpha_v")    != IV.end() )        alpha_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "alpha_v")));
     if(IV.find("disp_h")     != IV.end() )          dis_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_h"))); 
     if(IV.find("disp_v")     != IV.end() )          dis_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_v"))); 
+    if(IV.find("disp_der_h") != IV.end() )      dis_der_h = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_der_h"))); 
+    if(IV.find("disp_der_v") != IV.end() )      dis_der_v = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "disp_der_v"))); 
     if(IV.find("temp_tr")    != IV.end() )         tmp_tr = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "temp_tr"))); 
     if(IV.find("temp_long")  != IV.end() )       tmp_long = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "temp_long"))); 
     if(IV.find("n_electron") != IV.end() )     n_electron = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "n_electron")));
@@ -101,6 +116,7 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     n_electron = n_electron * 1e10; 
     
     // define ion beam;
+    /*
     double KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
     KE = 2.5e4;
     emit_nx0 = 2.5e-6;
@@ -113,13 +129,15 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
                 KE, 
                 emit_nx0, emit_ny0, 
                 dp_p0, sigma_s0, N_ptcl);
-
+*/
+    
     // The lattice is defined once in initialization & we just pass the reference around
     Lattice lattice = *(p->lattice);
 
     //Define the ring
-    Ring ring(lattice, p_beam);
-
+//    Ring ring(lattice, p_beam);
+    Ring ring(lattice,*(p->beam));
+    
     //Set IBS parameters.
     int nu = 100;
     int nv = 100;
@@ -130,16 +148,17 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     //define the cooler
     double cooler_length = p->length_;
     double n_section = p->section_number_;
-    Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v);
-
+    //Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v);
+    Cooler cooler(cooler_length,n_section,magnetic_field,beta_h,beta_v,dis_h, dis_v,alpha_h,alpha_v,dis_der_h,dis_der_v);
+    
     //define electron beam
     GaussianBunch gaussian_bunch(n_electron, sigma_x, sigma_y, sigma_s);
-    double gamma_e = p_beam.gamma();
+    double gamma_e = p->beam->gamma();
     EBeam e_beam(gamma_e, tmp_tr, tmp_long, gaussian_bunch);
 
     double rate_x, rate_y, rate_s;
     ecooling_rate(*(p->ecool_paras), *(p->force_paras),
-                  p_beam, cooler, e_beam, ring,
+                  *(p->beam), cooler, e_beam, ring,
                   rate_x, rate_y, rate_s);
      
     //NOTE: We're only cooling in the y direction here
@@ -163,7 +182,9 @@ void Optimize::Randomize()
     std::normal_distribution<double> sigma_distribution   (InitialValues["sigma_x"],1e-4);
     std::normal_distribution<double> sigma_s_distribution (InitialValues["sigma_s"],0.2);
     std::normal_distribution<double> beta_distribution    (InitialValues["beta_h"],10.);
+    std::normal_distribution<double> alpha_distribution   (InitialValues["alpha_h"],10.);
     std::normal_distribution<double> disp_distribution    (InitialValues["disp_h"],0.3);
+    std::normal_distribution<double> disp_der_distribution(InitialValues["disp_der_h"],0.3);
     std::normal_distribution<double> temp_distribution    (InitialValues["temp_tr"],0.01);
     std::normal_distribution<double> e_distribution       (InitialValues["n_electron"],0.5);
     
@@ -173,6 +194,7 @@ void Optimize::Randomize()
         sigma_distribution(generator);
         sigma_s_distribution(generator);
         beta_distribution(generator);
+        alpha_distribution(generator);
         disp_distribution(generator);
         temp_distribution(generator);
         e_distribution(generator);
@@ -214,6 +236,19 @@ void Optimize::Randomize()
         while(beta_v_tmp <= 0.) beta_v_tmp = beta_distribution(generator);
         fitter_values.beta_v_ = beta_v_tmp;
     }
+
+    if(std::find(FitVariables.begin(),FitVariables.end(),"alpha_h") != FitVariables.end() ){
+        double alpha_h_tmp = alpha_distribution(generator);
+        while(alpha_h_tmp <= 0.) alpha_h_tmp = alpha_distribution(generator);
+        fitter_values.alpha_h_ = alpha_h_tmp;
+    }
+    
+    if(std::find(FitVariables.begin(),FitVariables.end(),"alpha_v") != FitVariables.end() ){
+        double alpha_v_tmp = alpha_distribution(generator);
+        while(alpha_v_tmp <= 0.) alpha_v_tmp = alpha_distribution(generator);
+        fitter_values.alpha_v_ = alpha_v_tmp;
+    }
+
     
     if(std::find(FitVariables.begin(),FitVariables.end(),"disp_h") != FitVariables.end() ){
         double disp_h_tmp = disp_distribution(generator);
@@ -225,6 +260,18 @@ void Optimize::Randomize()
         double disp_v_tmp = disp_distribution(generator);
         while(disp_v_tmp <= 1e-5) disp_v_tmp = disp_distribution(generator);
         fitter_values.disp_v_ = disp_v_tmp;
+    }
+    
+    if(std::find(FitVariables.begin(),FitVariables.end(),"disp_der_h") != FitVariables.end() ){
+        double disp_der_h_tmp = disp_der_distribution(generator);
+        while(disp_der_h_tmp <= 1e-5) disp_der_h_tmp = disp_der_distribution(generator);
+        fitter_values.disp_der_h_ = disp_der_h_tmp;
+    }
+    
+    if(std::find(FitVariables.begin(),FitVariables.end(),"disp_der_v") != FitVariables.end() ){
+        double disp_der_v_tmp = disp_der_distribution(generator);
+        while(disp_der_v_tmp <= 1e-5) disp_der_v_tmp = disp_der_distribution(generator);
+        fitter_values.disp_der_v_ = disp_der_v_tmp;
     }
 
     if(std::find(FitVariables.begin(),FitVariables.end(),"temp_tr") != FitVariables.end() ){
@@ -295,8 +342,7 @@ void Optimize::OptimizeTrial(){
             iter++;
             status = gsl_multimin_fminimizer_iterate (s);
 
-//            if (status) break;    
-            if(iter % 10 == 0 ){
+            if(iter % 20 == 0 ){
                 std::cout<<iter;
 
                 for(int i=0; i < n_pars; i++){
@@ -355,12 +401,8 @@ int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<doub
     //Params is a vector of string ID's for parameters
     //InitialValues is a vector of doubles, matched 1:1 with the params
 
-    std::cout<<Params.size()<<std::endl;
-    for(int i=0;i<Params.size();i++){
-        std::cout<<Params[i]<<" "<<InitialValues[i]<<" "<<std::endl;
-    }
     
-    this->InitializeFitter(Params, InitialValues, lattice);
+    this->InitializeFitter(Params, InitialValues, lattice, &ion);
     this->ManyTrials();
         
     return 1;

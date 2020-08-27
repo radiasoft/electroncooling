@@ -207,7 +207,20 @@ int main(int argc, char** argv) {
                 
                 Lattice *l = new Lattice("eRHIC.tfs");
                 
-                Oppo.InitializeFitter(Params, InitialValues, l);
+                double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
+                int Z;
+                Z = 1;
+                m0 = 938.272;
+                KE = 100e3;
+                emit_nx0 = 1.2e-6;
+                emit_ny0 = 0.6e-6;
+                dp_p0 = 5e-4;
+                sigma_s0 = 0.84e-2;
+//                sigma_s0 = 2.5e-2;
+                N_ptcl = 6.56E9;
+                Beam *p_beam = new Beam(Z,m0/k_u, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl);
+                
+                Oppo.InitializeFitter(Params, InitialValues, l, p_beam);
                 
 //                sigma_x: 0.00078195 sigma_y: 0.00032111 n_electron: 3.8753 bfield: 3.257 Score: 4.9602e-06
                 

@@ -44,8 +44,8 @@ class Optimize{
      // because the whole thing can be passed into the 
      // static function for the fitter.
      struct opt_info{
-         int Z_                 = 1;
-         double m0_             = 938.272;
+//         int Z_                 = 1;
+//         double m0_             = 938.272;
          double magnetic_field_ = 1.0;    // in Tesla
          double length_         = 130.0;  // in meter
          double section_number_ = 1;
@@ -55,8 +55,8 @@ class Optimize{
          double disp_v_         = 0.0;
          double alpha_h_        = 0.0;
          double alpha_v_        = 0.0;
-         double der_disp_h_     = 0.0;
-         double der_disp_v_     = 0.0;
+         double disp_der_h_     = 0.0;
+         double disp_der_v_     = 0.0;
          double sigma_x_        = 1e-4;
          double sigma_y_        = 1e-4;
          double sigma_s_        = 0.15;
@@ -77,7 +77,7 @@ class Optimize{
          Lattice *lattice;
          ForceParas *force_paras;
          EcoolRateParas *ecool_paras;
-         
+         Beam *beam;
          
          std::vector<std::string> FitVariables_working;
          std::map<const std::string, double> FitStepSize_working;
@@ -90,7 +90,7 @@ class Optimize{
     
     public:
 
-        void InitializeFitter(std::vector<std::string>, std::vector<double>, Lattice *);
+        void InitializeFitter(std::vector<std::string>, std::vector<double>, Lattice*, Beam*);
     
         
         void OptimizeTrial();
