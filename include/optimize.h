@@ -90,13 +90,23 @@ class Optimize{
     
     public:
 
-        void InitializeFitter(std::vector<std::string>, std::vector<double>, Lattice*, Beam*);
+        void InitializeFitter(std::vector<std::string>, 
+                              std::vector<double>, 
+                              Lattice*, 
+                              Beam*, 
+                              ForceFormula ff);
     
         
         void OptimizeTrial();
         void ManyTrials();
         //A function to access the optimization from the UI 
-        int Optimize_From_UI(std::vector<std::string> Params, std::vector<double> InitialValues, Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring);
+        int Optimize_From_UI(std::vector<std::string> Params, 
+                             std::vector<double> InitialValues, 
+                             Beam &ion, 
+                             Cooler &cooler, 
+                             EBeam &ebeam, 
+                             Ring &ring, 
+                             ForceFormula ff);
     
         Optimize(){};
     

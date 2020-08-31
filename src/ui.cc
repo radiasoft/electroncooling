@@ -972,7 +972,13 @@ void optimize_cooling(Set_ptrs &ptrs) {
     // This is done with vectors to allow for a variable number of
     // floating parameters.
     
-    Oppo->Optimize_From_UI(ptrs.optimizer_ptr->mod_names, ptrs.optimizer_ptr->initial_values, *ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);    
+    Oppo->Optimize_From_UI(ptrs.optimizer_ptr->mod_names, 
+                           ptrs.optimizer_ptr->initial_values, 
+                           *ptrs.ion_beam, 
+                           *ptrs.cooler, 
+                           *ptrs.e_beam, 
+                           *ptrs.ring,
+                           ptrs.ecool_ptr->force);    
 }
 
 

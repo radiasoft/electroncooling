@@ -181,12 +181,9 @@ int main(int argc, char** argv) {
                 Params.push_back("sigma_x");
                 Params.push_back("sigma_y");
                 Params.push_back("n_electron");
-//                Params.push_back("bfield");
                 Params.push_back("sigma_s");
                 Params.push_back("beta_v");
                 Params.push_back("beta_h");
-                //Params.push_back("disp_v");
-                //Params.push_back("disp_h");
                 Params.push_back("temp_tr");
                 Params.push_back("temp_long");
                 
@@ -195,18 +192,15 @@ int main(int argc, char** argv) {
                 InitialValues.push_back(2e-4);
                 InitialValues.push_back(2e-4);
                 InitialValues.push_back(1.5);
-//                InitialValues.push_back(2.5);
                 InitialValues.push_back(0.05);
                 InitialValues.push_back(10.0);
                 InitialValues.push_back(10.0);
-                //InitialValues.push_back(0.1);
-                //InitialValues.push_back(0.1);
                 InitialValues.push_back(0.01);
                 InitialValues.push_back(0.01);
                 
                 
-                Lattice *l = new Lattice("eRHIC.tfs");
-                
+//                Lattice *l = new Lattice("eRHIC.tfs");
+                Lattice *l = new Lattice("MEICColliderRedesign1IP.tfs");
                 double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
                 int Z;
                 Z = 1;
@@ -220,20 +214,10 @@ int main(int argc, char** argv) {
                 N_ptcl = 6.56E9;
                 Beam *p_beam = new Beam(Z,m0/k_u, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl);
                 
-                Oppo.InitializeFitter(Params, InitialValues, l, p_beam);
+                ForceFormula ff = ForceFormula::PARKHOMCHUK;
                 
-//                sigma_x: 0.00078195 sigma_y: 0.00032111 n_electron: 3.8753 bfield: 3.257 Score: 4.9602e-06
+                Oppo.InitializeFitter(Params, InitialValues, l, p_beam, ff);
                 
-                //Budker:
-                //sigma_x: 0.00016359 sigma_y: 0.0008089 n_electron: 3.8875 bfield: 2.8271 sigma_s: 0.10738 Score: 0.00098258
-                //sigma_x: 9.4558e-05 sigma_y: 0.0001651 n_electron: 3.2512 sigma_s: 0.055643 temp_tr: 0.010003 temp_long: 0.0068927 Score: 4.598e-05
-                
-                //Fixing dispersion_v = 0.0 (per Boaz's suggestion)
-                //Unmagnetized (Binney):
-                //sigma_x: 4.1266e-05 sigma_y: 0.00062466 n_electron: 1.7981 sigma_s: 0.020496 temp_tr: 6.176e-05 temp_long: 0.013147 Score: 20.027
-                //sigma_x: 0.00036947 sigma_y: 6.4428e-05 n_electron: 2.3254 sigma_s: 0.094367 beta_v: 14.639 beta_h: 8.198 temp_tr: 1.4987e-06 temp_long: 0.024554 Score: 20
-                
-                //Oppo.OptimizeTrial();
                 Oppo.ManyTrials();
                 
                 

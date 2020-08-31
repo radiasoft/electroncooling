@@ -6,7 +6,7 @@ extern IBSSolver * ibs_solver;
 //extern ForceParas * force_paras;
 extern Luminosity *luminosity_paras;
 
-void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice, Beam *ion){
+void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice, Beam *ion, ForceFormula ff){
 
     assert(Params.size() != IV.size() && "Mismatch in optimization parameters!");
     
@@ -41,10 +41,11 @@ void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<dou
 
     //Parse the ion beam that's pre-defined
     fitter_values.beam = ion;
+    fitter_values.ff = ff;
     
     //Initialize other classes that don't change
     fitter_values.ecool_paras = new EcoolRateParas(fitter_values.n_sample);
-    fitter_values.force_paras = ChooseForce(fitter_values.ff);//ForceFormula::PARKHOMCHUK);
+    fitter_values.force_paras = ChooseForce(fitter_values.ff);
     
     //Now that we've stored the user's input values,
     // copy to a 'working' version that the optimizing function will use
@@ -342,6 +343,7 @@ void Optimize::OptimizeTrial(){
             iter++;
             status = gsl_multimin_fminimizer_iterate (s);
 
+            /*
             if(iter % 20 == 0 ){
                 std::cout<<iter;
 
@@ -350,6 +352,7 @@ void Optimize::OptimizeTrial(){
                 }
                 std::cout<<" Score: "<<s->fval<<std::endl;
             }
+            */
         } while(iter<125);
 //                while (status == GSL_CONTINUE && iter < 100);
 
@@ -393,7 +396,7 @@ void Optimize::ManyTrials()
 }
 
 
-int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<double>InitialValues, Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring){
+int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<double>InitialValues, Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring, ForceFormula ff){
     
     
     Lattice *lattice = ring.lattice_; //"eRHIC.tfs"
@@ -402,7 +405,7 @@ int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<doub
     //InitialValues is a vector of doubles, matched 1:1 with the params
 
     
-    this->InitializeFitter(Params, InitialValues, lattice, &ion);
+    this->InitializeFitter(Params, InitialValues, lattice, &ion, ff);
     this->ManyTrials();
         
     return 1;
