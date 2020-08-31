@@ -108,13 +108,14 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
         sigma_x < 0.0 || sigma_y < 0.0 || sigma_s < 0.0 ||
         tmp_tr < 1e-6 || tmp_long < 1e-6 || n_electron > 5.0){
         std::cout<<"Unphysical"<<std::endl;
-        return 100000.0;
+        return DBL_MAX;
     }
     
     
     //We're really only varying the scale factor
-    // TODO: Convert this to nanocoulombs
+    // TODO: Convert this to nanocoulombs? (6.242e9 electrons/nC)
     n_electron = n_electron * 1e10; 
+    //n_electron = n_electron * 6.242e9; 
     
     // define ion beam;
     /*
@@ -376,7 +377,7 @@ void Optimize::OptimizeTrial(){
 void Optimize::ManyTrials()
 {                   
     for(int i = 0;i<n_trials;i++){
-        std::cout<<"Random Iteration "<<i<<std::endl;
+        std::cout<<"Random Iteration "<<i+1<<"/"<<n_trials<<std::endl;
         Randomize();
         OptimizeTrial();
     }                 
@@ -387,12 +388,15 @@ void Optimize::ManyTrials()
     }
     std::cout<<" Score: "<<best_fval<<std::endl;
                 
-    //std::ofstream myfile;
-    //myfile.open ("bests.txt");
+    std::ofstream myfile;
+    myfile.open ("bests.txt");
+    for(int i=0; i < BestFits.size(); i++){
+        myfile<<" "<<FitVariables[i]<<": "<<std::setprecision(5)<<BestFits[FitVariables[i]]<<"\n";
+    }
     //myfile << best_b<<" "<< best_sigma_x<<" "<<best_sigma_y<<" "<<best_sigma_z<<" "<<
     //        best_beta_h<<" "<<best_beta_v<<" "<< best_disp_h<<" "<<best_disp_v<<" "<<
     //        best_temp_tr<<" "<<best_temp_long<<" "<< best_n_electron<<" "<< best_fval<<"\n";
-    //myfile.close();    
+    myfile.close();    
 }
 
 

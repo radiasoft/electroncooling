@@ -90,6 +90,7 @@ class Optimize{
     
     public:
 
+        void SetTrials(int v){n_trials = v;}
         void InitializeFitter(std::vector<std::string>, 
                               std::vector<double>, 
                               Lattice*, 
