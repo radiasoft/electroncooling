@@ -69,10 +69,16 @@ void ibs_kick(unsigned int n_sample, double rate, double twiss, double dt, doubl
     if (rate>0) {
         double theta = sqrt(2*rate*dt*emit/twiss);
         gaussian_random(n_sample, rdn.get(), 1, 0);
+        #ifdef _OPENMP
+            #pragma omp parallel for num_threads(5)
+        #endif
         for(unsigned int i=0; i<n_sample; ++i) p[i] += theta*rdn[i];
     }
     else {
         double k = exp(rate*dt);
+        #ifdef _OPENMP
+            #pragma omp parallel for num_threads(5)
+        #endif
         for(unsigned int i=0; i<n_sample; ++i) p[i] *= k;
     }
 }
@@ -100,6 +106,9 @@ void adjust_freq(double &freq, EBeam ebeam) {
 }
 
 void apply_cooling_kick(double t_cooler, double freq, double dt) {
+    #ifdef _OPENMP
+        #pragma omp parallel for num_threads(5)
+    #endif
     for(unsigned int i=0; i<n_sample; ++i) {
         xp[i] = !iszero(xp[i])?xp[i]*exp(force_x[i]*t_cooler*dt*freq/(xp[i]*p0)):xp[i];
         yp[i] = !iszero(yp[i])?yp[i]*exp(force_y[i]*t_cooler*dt*freq/(yp[i]*p0)):yp[i];
