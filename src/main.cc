@@ -10,6 +10,7 @@
 #include "muParserDLL.h"
 #include "ring.h"
 #include "ui.h"
+#include "optimize.h"
 
 using std::string;
 
@@ -28,7 +29,7 @@ extern muParserHandle_t math_parser;
 //extern std::vector<std::string> ion_pars;
 
 
-enum class Test {IBS, ECOOL, BOTH, DYNAMICIBS, DYNAMICECOOL, DYNAMICBOTH, DYNAMICIBSBUNCHED};
+enum class Test {OPTIMIZE, IBS, ECOOL, BOTH, DYNAMICIBS, DYNAMICECOOL, DYNAMICBOTH, DYNAMICIBSBUNCHED};
 
 int main(int argc, char** argv) {
 
@@ -81,6 +82,10 @@ int main(int argc, char** argv) {
                             }
                             case Section::SECTION_LUMINOSITY: {
                                 if (ptrs.luminosity_ptr.get() == nullptr) ptrs.luminosity_ptr.reset(new Set_luminosity());
+                                break;
+                            }
+                            case Section::SECTION_OPTIMIZATION: {
+                                if (ptrs.optimizer_ptr.get() == nullptr) ptrs.optimizer_ptr.reset(new Set_optimizer());
                                 break;
                             }
                             case Section::SECTION_SIMULATION: {
@@ -143,6 +148,10 @@ int main(int argc, char** argv) {
                                 set_simulation(line, ptrs.dynamic_ptr.get());
                                 break;
                             }
+                            case Section::SECTION_OPTIMIZATION: {
+                                define_optimizer(line, ptrs.optimizer_ptr.get());
+                                break;
+                            }
                             case Section::SECTION_RUN: {
                                 run(line, ptrs);
                                 break;
@@ -161,8 +170,62 @@ int main(int argc, char** argv) {
 
     }
     else {
-        Test test = Test::DYNAMICECOOL;
+        Test test = Test::OPTIMIZE;
         switch (test){
+            case Test::OPTIMIZE:{
+                
+                Optimize Oppo;
+                
+                //Choose the parameters to fit.
+                std::vector<std::string> Params;
+                Params.push_back("sigma_x");
+                Params.push_back("sigma_y");
+                Params.push_back("n_electron");
+                Params.push_back("sigma_s");
+                Params.push_back("beta_v");
+                Params.push_back("beta_h");
+                Params.push_back("temp_tr");
+                Params.push_back("temp_long");
+                
+                //Set their initial values (must be in the same order as above)
+                std::vector<double> InitialValues;
+                InitialValues.push_back(2e-4);
+                InitialValues.push_back(2e-4);
+                InitialValues.push_back(1.5);
+                InitialValues.push_back(0.05);
+                InitialValues.push_back(10.0);
+                InitialValues.push_back(10.0);
+                InitialValues.push_back(0.01);
+                InitialValues.push_back(0.01);
+                
+                
+//                Lattice *l = new Lattice("eRHIC.tfs");
+                Lattice *l = new Lattice("MEICColliderRedesign1IP.tfs");
+                double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
+                int Z;
+                Z = 1;
+                m0 = 938.272;
+                KE = 100e3;
+                emit_nx0 = 1.2e-6;
+                emit_ny0 = 0.6e-6;
+                dp_p0 = 5e-4;
+                sigma_s0 = 0.84e-2;
+//                sigma_s0 = 2.5e-2;
+                N_ptcl = 6.56E9;
+                Beam *p_beam = new Beam(Z,m0/k_u, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl);
+                
+                ForceFormula ff = ForceFormula::PARKHOMCHUK;
+                
+                Oppo.InitializeFitter(Params, InitialValues, l, p_beam, ff);
+                
+                Oppo.ManyTrials();
+                
+                
+                break;
+            }
+                
+                
+                
             case Test::BOTH: {
                 // define proton beam;
                 double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
