@@ -29,7 +29,7 @@ extern muParserHandle_t math_parser;
 //extern std::vector<std::string> ion_pars;
 
 
-enum class Test {OPTIMIZE, IBS, ECOOL, BOTH, DYNAMICIBS, DYNAMICECOOL, DYNAMICBOTH, DYNAMICIBSBUNCHED};
+enum class Test {OPTIMIZE, PARAMETER_SCAN, IBS, ECOOL, BOTH, DYNAMICIBS, DYNAMICECOOL, DYNAMICBOTH, DYNAMICIBSBUNCHED};
 
 int main(int argc, char** argv) {
 
@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
 
     }
     else {
-        Test test = Test::OPTIMIZE;
+        Test test = Test::PARAMETER_SCAN;
         switch (test){
             case Test::OPTIMIZE:{
                 
@@ -224,8 +224,50 @@ int main(int argc, char** argv) {
                 break;
             }
                 
+            case Test::PARAMETER_SCAN:{
+                
+                string scan_par = "disp_h";
+                double par_min = 0;
+                double par_max = 5;
+                int n_steps  = 20;
+                
+                Optimize::opt_info params;
+                params.lattice_filename = "table.tfs";
+                Lattice *l = new Lattice("table.tfs");
+                params.lattice = l;
+                
+                int Z = 1;
+                double m0 = 938.272;
+                double KE = 100e3;
+                double emit_nx0 = 1.2e-6;
+                double emit_ny0 = 0.6e-6;
+                double dp_p0 = 5e-4;
+                double sigma_s0 = 0.84e-2;
+//                sigma_s0 = 2.5e-2;
+                double N_ptcl = 6.56E9;
+                Beam *p_beam = new Beam(Z,m0/k_u, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl);
+                
+                params.beam = p_beam;
+                int n_sample = 100000;
+                params.ecool_paras = new EcoolRateParas(n_sample);
+                params.force_paras = ChooseForce(ForceFormula::DERBENEVSKRINSKY);
+                Optimize Oppo;
+                
+                std::vector<double> ps =  Oppo.ParameterScan(scan_par,
+                                                            par_min, 
+                                                            par_max, 
+                                                            n_steps,
+                                                            params);
+                for(int i=0;i<ps.size();i++){
+                    std::cout<<ps[i]<<" ";
+                }
+                std::cout<<std::endl;
                 
                 
+                
+                
+                break;
+            }      
             case Test::BOTH: {
                 // define proton beam;
                 double m0, KE, emit_nx0, emit_ny0, dp_p0, sigma_s0, N_ptcl;
