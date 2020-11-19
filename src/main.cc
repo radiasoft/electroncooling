@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
                 
                 ForceFormula ff = ForceFormula::PARKHOMCHUK;
                 
-                Oppo.InitializeFitter(Params, InitialValues, l, p_beam, ff);
+//                Oppo.InitializeFitter(Params, InitialValues, l, p_beam,cooler, ff);
                 
                 Oppo.ManyTrials();
                 
@@ -253,13 +253,13 @@ int main(int argc, char** argv) {
                 params.force_paras = ChooseForce(ForceFormula::DERBENEVSKRINSKY);
                 Optimize Oppo;
                 
-                std::vector<double> ps =  Oppo.ParameterScan(scan_par,
+                std::map<int, vector<double> > ps =  Oppo.ParameterScan(scan_par,
                                                             par_min, 
                                                             par_max, 
                                                             n_steps,
                                                             params);
                 for(int i=0;i<ps.size();i++){
-                    std::cout<<ps[i]<<" ";
+                    std::cout<<ps[0][i]<<" ";
                 }
                 std::cout<<std::endl;
                 

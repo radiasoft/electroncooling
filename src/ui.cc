@@ -824,16 +824,18 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     //If a variable repeats, then we'll know that the user intends to use
     // its set values as bounds for a parameter scan.  Defining other 
     // values to optimize over will throw an error. See the bottom of this
-    // function for the implementation
+    // function for the implementation.
     
-    //Set the granularity (only used for 1d parameter scan)
+    //Set the granularity (only used for 1d parameter scan), see below
     if(var=="STEPS"){
         opt_args->n_steps = std::stoi(val);
     }
     //Check if we've already got a parameter scan going:
-
-    else if(opt_args->min_max.size() > 0){
-        assert((var == opt_args->mod_names[0]) && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
+    else if(opt_args->min_max.size() > 0){ //we've already had a parameter repeat.
+        
+        //If a user has indicated that they want a parameter scan, the only 
+        // allowed var is "STEPS"
+        assert((var == opt_args->mod_names[0]) || (var == "STEPS") && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
     }
         
     if (var=="SIGMA_X") {
@@ -901,7 +903,7 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
         opt_args->initial_values.push_back(std::stod(val));
     }
 
-    //Check if a variable is defined twice, indicating a parameter scan
+    //Check if a variable has been defined twice, indicating a parameter scan.
     // We'll know this if the set of uniques in opt_args->mod_names is 
     // shorter than the actual list
     std::set<string> uvec(opt_args->mod_names.begin(), opt_args->mod_names.end());
@@ -909,11 +911,13 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     if(uvec.size() < opt_args->mod_names.size()){
         //We're in the parameter scan regime. Throw an error if there are other
         // parameters present. Either the user meant to do a multi-dimensional 
-        // optimization and accidentally repeated one, or they 
+        // optimization and accidentally repeated one name, or they 
         // don't know how the parameter scan works.
-        // Remove the current val from the set of uniques and count the set length
+        // Remove the current val and "STEPS" from the set of uniques and count the set length
         uvec.erase(var);
-        assert(uvec.size==0 && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
+        uvec.erase("STEPS");
+        //If there's anything left, then throw an error
+        assert( uvec.size() > 1  && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
         
         //Store the defined value from this row as one of the limits of the search
         opt_args->min_max.push_back(std::stod(val));        
@@ -925,7 +929,9 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
             opt_args->min_max.push_back(opt_args->initial_values[0]);
         }
         
-        std::sort(opt_args->min_max.begin(), opt_args->min_max.end()); // go ahead and sort it so we know which is min and which is max
+        // go ahead and sort it so we know which is min and which is max.
+        // This way the user can define the min/max in any order
+        std::sort(opt_args->min_max.begin(), opt_args->min_max.end()); 
     }    
 }
 
@@ -1014,10 +1020,22 @@ void optimize_cooling(Set_ptrs &ptrs) {
 
     Optimize *Oppo = new Optimize();
 
+    
     //Did our parsing of the inputs indicate that this is a 1d parameter scan?
     // If so, 
     if(ptrs.optimizer_ptr->min_max.size()>0){
-        std::cout<<"Performing a 1-d parameter scan on "<<ptrs.optimizer_ptr->mod_names[0]<<" from "<<ptrs.optimizer_ptr->min_max[0]<<" to "<<ptrs.optimizer_ptr->min_max[1]<<" in "<<ptrs.optimizer_ptr->n_steps<<" steps:"<<std::endl;
+        
+        std::cout<<"Performing a 1-d parameter scan on "<<ptrs.optimizer_ptr->mod_names[0]
+            <<" from "<<ptrs.optimizer_ptr->min_max[0]<<" to "<<ptrs.optimizer_ptr->min_max[1]
+            <<" in "<<ptrs.optimizer_ptr->n_steps<<" steps:"<<std::endl;
+
+        
+        //If there's an IBS section defined, then use it in the parameter scan
+        if(ibs){
+            Oppo->SetDoIBS(true);
+        }
+
+
         Oppo->ParameterScan_From_UI(ptrs.optimizer_ptr->mod_names,
                                    ptrs.optimizer_ptr->min_max,
                                    ptrs.optimizer_ptr->n_steps,

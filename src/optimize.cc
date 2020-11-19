@@ -6,7 +6,7 @@ extern IBSSolver * ibs_solver;
 //extern ForceParas * force_paras;
 extern Luminosity *luminosity_paras;
 
-void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice, Beam *ion, ForceFormula ff){
+void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<double> IV, Lattice *lattice, Beam *ion, Cooler *cooler, EBeam *ebeam, ForceFormula ff){
 
     assert(Params.size() != IV.size() && "Mismatch in optimization parameters!");
 
@@ -36,15 +36,39 @@ void Optimize::InitializeFitter(std::vector<std::string> Params, std::vector<dou
     FitStepSize["n_electron"] = 0.1;
     FitStepSize["log_c"]      = 0.2;
 
-    //Parse the lattice file once, store it for each
-    // call to fit_fcn
+    //Store the values that were pre-set in the input file, before
+    // the optimization section was defined.
+    // If they were re-defined in the optimization section they'll
+    // be over-written
+    fitter_values.magnetic_field_ = cooler->magnetic_field();
+    fitter_values.beta_h_         = cooler->beta_h();
+    fitter_values.beta_v_         = cooler->beta_v();
+    fitter_values.alpha_h_        = cooler->alpha_h();
+    fitter_values.alpha_v_        = cooler->alpha_v();
+    fitter_values.disp_h_         = cooler->disp_h();
+    fitter_values.disp_v_         = cooler->disp_v();
+    fitter_values.disp_der_h_     = cooler->der_disp_h();
+    fitter_values.disp_der_v_     = cooler->der_disp_v();
+    fitter_values.temp_tr_        = ebeam->tmp_tr();
+    fitter_values.temp_long_      = ebeam->tmp_long();
+    fitter_values.sigma_x_        = ebeam->sigma_x();
+    fitter_values.sigma_y_        = ebeam->sigma_y();
+    fitter_values.sigma_s_        = ebeam->length(); //Assuming it's bunched!
+    //Assuming Gaussian bunch!
+    // Also, to conform the n_electron pulled from the object (no scaling)
+    // with the n_electron we typically get from n_electron in the optimization
+    // section (scaled 1/1e10), we scale down the value here.
+    fitter_values.n_electron_     = ebeam->n_electron() / 1e10; 
+    
+    //Parse the lattice file once, store it in memory for each
+    // subsequent call to fit_fcn
     fitter_values.lattice = lattice;
 
     //Parse the ion beam that's pre-defined
     fitter_values.beam = ion;
     fitter_values.ff = ff;
 
-    //Initialize other classes that don't change
+    //Initialize other classes that don't (yet) have floating parameters
     fitter_values.ecool_paras = new EcoolRateParas(fitter_values.n_sample);
     fitter_values.force_paras = ChooseForce(fitter_values.ff);
 
@@ -78,7 +102,7 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     double dis_der_v= p->disp_der_v_;
     double tmp_tr   = p->temp_tr_;
     double tmp_long = p->temp_long_;
-    double n_electron = p->n_electron_;
+    double n_electron = p->n_electron_; //scaled by 1/1e10
     double log_c    = p->log_c_;
 
     //Reminder: Some other parameters are set directly from the pointer below (like m0 and Z)
@@ -105,21 +129,19 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     if(IV.find("n_electron") != IV.end() )     n_electron = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "n_electron")));
     if(IV.find("log_c") != IV.end() )               log_c = gsl_vector_get(v,std::distance(FV.begin(),std::find(FV.begin(), FV.end(), "log_c")));
 
-
     //Punish unphysical parameters
     if (magnetic_field < 0.0 ||
         sigma_x < 0.0 || sigma_y < 0.0 || sigma_s < 0.0 ||
-        tmp_tr < 1e-6 || tmp_long < 1e-6 || n_electron > 5.0 ||
+        tmp_tr < 1e-6 || tmp_long < 1e-6 || 
+        n_electron < 0.0 || n_electron > 10.0 ||
         log_c < 0){
         std::cout<<"Unphysical"<<std::endl;
         return DBL_MAX;
     }
 
-
     //We're really only varying the scale factor
     // TODO: Convert this to nanocoulombs? (6.242e9 electrons/nC)
     n_electron = n_electron * 1e10;
-    //n_electron = n_electron * 6.242e9;
 
     // The lattice is defined once in initialization & we just pass the reference around
     Lattice lattice = *(p->lattice);
@@ -127,7 +149,7 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     //Define the ring
     Ring ring(lattice,*(p->beam));
 
-    //Set IBS parameters.
+    //Set IBS parameters. Could be added to optimization later?
     int nu = 100;
     int nv = 100;
     int nz = 40;
@@ -142,20 +164,31 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
     GaussianBunch gaussian_bunch(n_electron, sigma_x, sigma_y, sigma_s);
     double gamma_e = p->beam->gamma();
     EBeam e_beam(gamma_e, tmp_tr, tmp_long, gaussian_bunch);
-
+    
+    //Calculate the delta rate from IBS
+    double rx_ibs, ry_ibs, rz_ibs;
+    ibs_solver->rate(lattice, *(p->beam), rx_ibs, ry_ibs, rz_ibs);
+    //std::cout<<"IBS:" << rx_ibs<<" "<<ry_ibs<<" "<<rz_ibs<<std::endl;
+    
+    //Calculate the delta rate from cooling
     double rate_x, rate_y, rate_s;
     ecooling_rate(*(p->ecool_paras), *(p->force_paras),
                   *(p->beam), cooler, e_beam, ring,
                   rate_x, rate_y, rate_s);
 
-    std::cout<<rate_x<<" "<<rate_y<<" "<<rate_s<<std::endl;
-    //NOTE: We're only cooling in the y direction here
-    // Chuck it if we get a heating rate (rate_y>0)
-    if(rate_y > 0.0 || isnan(rate_y)){
-        return 100000.0;
+    //std::cout<<rate_x<<" "<<rate_y<<" "<<rate_s<<std::endl;
+
+    double total_rate_x = rate_x + rx_ibs;
+    double total_rate_y = rate_y + ry_ibs;
+    double total_rate_z = rate_s + rz_ibs;
+        
+    //NOTE: We're only optimizing cooling in the y direction here (so far)
+    // Chuck the trial if we get a heating rate (rate_y>0)
+    if(total_rate_y > 0.0 || isnan(total_rate_y)){
+        return DBL_MAX;
     }
     else{
-        return abs(p->cool_target_ - ((-1./(rate_y))/60.));
+        return abs(p->cool_target_ - ((-1./(total_rate_y))/60.));
     }
 }
 
@@ -189,7 +222,7 @@ std::vector<double> linspace(T start_in, T end_in, int num_in)
 }
 
 
-std::vector<double> Optimize::ParameterScan(string scan_par, double par_min, double par_max, int n_steps, opt_info params)
+std::map<int, vector<double> >Optimize::ParameterScan(string scan_par, double par_min, double par_max, int n_steps, opt_info params)
 {
     //Fix all but one values, and scan the rates returned from varying that parameter
     
@@ -208,7 +241,7 @@ std::vector<double> Optimize::ParameterScan(string scan_par, double par_min, dou
     double dis_der_v= params.disp_der_v_;
     double tmp_tr   = params.temp_tr_;
     double tmp_long = params.temp_long_;
-    double n_electron = params.n_electron_;
+    double n_electron = params.n_electron_*1e10; //Was already scaled by 1/1e10 (see InitializeFitter)
     double log_c    = params.log_c_;
 
     //Reminder: Some other parameters are set directly from the pointer below (like m0 and Z)
@@ -221,7 +254,7 @@ std::vector<double> Optimize::ParameterScan(string scan_par, double par_min, dou
     //}
     //std::cout<<std::endl;
     
-    std::vector<double> results;
+    std::map< int,std::vector<double> > results;
 
     for(unsigned int i=0;i<n_steps;++i){
         // Then overwrite the set value of the scanned variable
@@ -239,16 +272,13 @@ std::vector<double> Optimize::ParameterScan(string scan_par, double par_min, dou
         else if(scan_par == "disp_der_v")   dis_der_v      = scan_samples[i];
         else if(scan_par == "temp_tr")      tmp_tr         = scan_samples[i];
         else if(scan_par == "temp_long")    tmp_long       = scan_samples[i];
-        else if(scan_par == "n_electron")   n_electron     = scan_samples[i];
+        else if(scan_par == "n_electron")   n_electron     = scan_samples[i]*1e10; // We scale it by 1e10 
         else if(scan_par == "log_c")        log_c          = scan_samples[i];
         else{
             std::cout<<"I don't recognize variable "<<scan_par<<std::endl;
         }
-
-        //We're really only varying the scale factor
-        // TODO: Convert this to nanocoulombs? (6.242e9 electrons/nC)
-        n_electron = n_electron * 1e10;
-        //n_electron = n_electron * 6.242e9;
+        
+        std::cout<<"Testing. "<<n_electron<<std::endl;
 
         // The lattice is defined once in initialization & we just pass the reference around
         Lattice lattice = *(params.lattice);
@@ -278,6 +308,13 @@ std::vector<double> Optimize::ParameterScan(string scan_par, double par_min, dou
 
         //We need the sample to be big to eliminate statistical errors
         params.ecool_paras->set_n_sample(1e7);
+            
+        double rx_ibs, ry_ibs, rz_ibs = 0.0;
+        if(do_ibs_){    
+            //Calculate the delta rate from IBS
+            ibs_solver->rate(lattice, *(params.beam), rx_ibs, ry_ibs, rz_ibs);
+            //std::cout<<"IBS:" << rx_ibs<<" "<<ry_ibs<<" "<<rz_ibs<<std::endl;
+        }
         
         double rate_x, rate_y, rate_s;
         ecooling_rate(*(params.ecool_paras), *(params.force_paras),
@@ -285,13 +322,20 @@ std::vector<double> Optimize::ParameterScan(string scan_par, double par_min, dou
                       rate_x, rate_y, rate_s);
 
         std::cout<<rate_x<<" "<<rate_y<<" "<<rate_s<<std::endl;
-        results.push_back(rate_y);
+        
+        double total_rate_x = rate_x + rx_ibs;
+        double total_rate_y = rate_y + ry_ibs;
+        double total_rate_s = rate_s + rz_ibs;
+
+        results[0].push_back(total_rate_x);
+        results[1].push_back(total_rate_y);
+        results[2].push_back(total_rate_s);
     }
 
     std::ofstream myfile;
     myfile.open ("scan.txt");
-    for(int i=0; i < results.size(); i++){
-        myfile<<" "<<scan_samples[i]<<", "<<std::setprecision(5)<<results[i]<<"\n";
+    for(int i=0; i < results[0].size(); i++){
+        myfile<<" "<<scan_samples[i]<<", "<<std::setprecision(5)<<(results[0])[i]<<", "<<(results[1])[i]<<", "<<(results[2])[i]<<"\n";
     }
     myfile.close();
     
@@ -548,7 +592,7 @@ int Optimize::Optimize_From_UI(std::vector<std::string> Params, std::vector<doub
     //InitialValues is a vector of doubles, matched 1:1 with the params
 
 
-    this->InitializeFitter(Params, InitialValues, lattice, &ion, ff);
+    this->InitializeFitter(Params, InitialValues, lattice, &ion, &cooler,&ebeam, ff);
     this->ManyTrials();
 
     return 1;
@@ -565,7 +609,7 @@ int Optimize::ParameterScan_From_UI(std::vector<std::string> Params, std::vector
 
     std::vector<double> dummy_d;
     std::vector<string> dummy_s;
-    this->InitializeFitter(dummy_s, dummy_d, lattice, &ion, ff);
+    this->InitializeFitter(dummy_s, dummy_d, lattice, &ion, &cooler,&ebeam, ff);
     this->ParameterScan(Params[0], 
                         min_max[0], 
                         min_max[1],

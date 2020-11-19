@@ -35,7 +35,8 @@ class Optimize{
     void Randomize();
 
     int n_trials = 15;
-
+    bool do_ibs_ = false;
+    
     public:
      //Store some parameters we don't scan over,
      // including ion beam info.
@@ -86,16 +87,18 @@ class Optimize{
 
     //opt_info fitter_values;
 
-    
+        void SetDoIBS(bool v){do_ibs_ = v;}
 
         void SetTrials(int v){n_trials = v;}
         void InitializeFitter(std::vector<std::string>,
                               std::vector<double>,
                               Lattice*,
                               Beam*,
+                              Cooler*,
+                              EBeam*,
                               ForceFormula ff);
 
-        std::vector<double> ParameterScan(string scan_par, 
+        std::map<int, vector<double> >ParameterScan(string scan_par, 
                            double par_min, 
                            double par_max, 
                            int n_steps,
