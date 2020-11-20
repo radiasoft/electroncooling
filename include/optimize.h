@@ -16,15 +16,15 @@
 #include <iomanip>
 
 //This object stores all optimizable variables
-// as doubles. Seems like a duplication of 
+// as doubles. Seems like a duplication of
 // storage in this class, but I don't know a better
 // way at this moment.
 
-//We also need to store the step size and RMS for the 
+//We also need to store the step size and RMS for the
 // Gaussian search
 
 class Optimize{
-    
+
     std::vector<std::string> FitVariables;
     std::map<const std::string, double> FitStepSize;
     std::map<const std::string, double> BestFits;
@@ -33,15 +33,15 @@ class Optimize{
 
     static double fit_fcn(const gsl_vector *v, void *params);
     void Randomize();
-        
+
     int n_trials = 15;
-         
-    
-  protected:
+    bool do_ibs_ = false;
+
+    public:
      //Store some parameters we don't scan over,
      // including ion beam info.
      // It's easier to define these things in a struct
-     // because the whole thing can be passed into the 
+     // because the whole thing can be passed into the
      // static function for the fitter.
      struct opt_info{
 //         int Z_                 = 1;
@@ -63,55 +63,69 @@ class Optimize{
          double temp_tr_        = 0.01;
          double temp_long_      = 0.01;
          double n_electron_     = 1.5; // in 1e10
-    
+         double log_c_          = 39.9/2;
+
          double cool_target_    = 20.; //The time in minutes to aim for
-         
+
          int n_sample           = 1e6;
-         
-         
-         std::string lattice_filename = "eRHIC.tfs";    
-         //ForceFormula ff = ForceFormula::PARKHOMCHUK;
-        ForceFormula ff = ForceFormula::BUDKER;
-//        ForceFormula ff = ForceFormula::UNMAGNETIZED;
-         
+
+
+         std::string lattice_filename = "eRHIC.tfs";
+         ForceFormula ff = ForceFormula::PARKHOMCHUK;
+
          Lattice *lattice;
          ForceParas *force_paras;
          EcoolRateParas *ecool_paras;
          Beam *beam;
-         
+
          std::vector<std::string> FitVariables_working;
          std::map<const std::string, double> FitStepSize_working;
          std::map<const std::string, double> BestFits_working;
          std::map<const std::string, double> InitialValues_working;
-         
+
         } fitter_values;
-    
+
     //opt_info fitter_values;
-    
-    public:
+
+        void SetDoIBS(bool v){do_ibs_ = v;}
 
         void SetTrials(int v){n_trials = v;}
-        void InitializeFitter(std::vector<std::string>, 
-                              std::vector<double>, 
-                              Lattice*, 
-                              Beam*, 
+        void InitializeFitter(std::vector<std::string>,
+                              std::vector<double>,
+                              Lattice*,
+                              Beam*,
+                              Cooler*,
+                              EBeam*,
                               ForceFormula ff);
-    
-        
+
+        std::map<int, vector<double> >ParameterScan(string scan_par,
+                           double par_min,
+                           double par_max,
+                           int n_steps,
+                           opt_info params);
+
         void OptimizeTrial();
         void ManyTrials();
-        //A function to access the optimization from the UI 
-        int Optimize_From_UI(std::vector<std::string> Params, 
-                             std::vector<double> InitialValues, 
-                             Beam &ion, 
-                             Cooler &cooler, 
-                             EBeam &ebeam, 
-                             Ring &ring, 
+        //A function to access the optimization from the UI
+        int Optimize_From_UI(std::vector<std::string> Params,
+                             std::vector<double> InitialValues,
+                             Beam &ion,
+                             Cooler &cooler,
+                             EBeam &ebeam,
+                             Ring &ring,
                              ForceFormula ff);
-    
+
+        int ParameterScan_From_UI(std::vector<std::string> Params,
+                                  std::vector<double>min_max,
+                                  int n_steps,
+                                  Beam &ion, Cooler &cooler,
+                                  EBeam &ebeam, Ring &ring,
+                                  ForceFormula ff);
+
+
         Optimize(){};
-    
-    
-    
+
+
+
 };
 #endif // OPTIMIZE_H
