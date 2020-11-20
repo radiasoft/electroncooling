@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <cmath>
+#include <set>
 
 #include "beam.h"
 #include "constants.h"
@@ -38,7 +39,7 @@ muParserHandle_t math_parser = NULL;
 std::vector<string> ION_ARGS = {"CHARGE_NUMBER", "MASS", "KINETIC_ENERGY", "NORM_EMIT_X", "NORM_EMIT_Y",
     "MOMENTUM_SPREAD", "PARTICLE_NUMBER", "RMS_BUNCH_LENGTH"};
 std::vector<string> RUN_COMMANDS = {"CREATE_ION_BEAM", "CREATE_RING", "CREATE_E_BEAM", "CREATE_COOLER",
-    "CALCULATE_IBS", "CALCULATE_ECOOL", "TOTAL_EXPANSION_RATE", "RUN_SIMULATION", "CALCULATE_LUMINOSITY"};
+    "CALCULATE_IBS", "CALCULATE_ECOOL", "TOTAL_EXPANSION_RATE", "RUN_SIMULATION", "CALCULATE_LUMINOSITY", "OPTIMIZE_COOLING"};
 std::vector<string> RING_ARGS = {"LATTICE", "QX", "QY", "QS", "GAMMA_TR", "RF_V", "RF_H", "RF_PHI"};
 std::vector<string> IBS_ARGS = {"NU","NV","NZ","LOG_C","COUPLING","MODEL","IBS_BY_ELEMENT"};
 std::vector<string> COOLER_ARGS = {"LENGTH", "SECTION_NUMBER", "MAGNETIC_FIELD", "BET_X", "BET_Y", "DISP_X", "DISP_Y",
@@ -64,6 +65,8 @@ std::vector<string> SCRATCH_ARGS = {"VL_EMIT_NX", "VL_EMIT_NY", "VL_MOMENTUM_SPR
 std::vector<string> LUMINOSITY_ARGS = {"DISTANCE_X", "DISTANCE_Y", "PARTICLE_NUMBER_1", "PARTICLE_NUMBER_2", "FREQUENCY",
     "BEAM_SIZE_X_1", "BEAM_SIZE_X_2", "BEAM_SIZE_Y_1", "BEAM_SIZE_Y_2", "BET_X_1", "BET_X_2", "BET_Y_1",
     "BET_Y_2", "GEO_EMIT_X_1", "GEO_EMIT_X_2", "GEO_EMIT_Y_1", "GEO_EMIT_Y_2", "USE_ION_EMITTANCE"};
+std::vector<string> OPTIMIZATION_ARGS = {"sigma_x","sigma_y","sigma_z","n_electron","bfield","sigma_s","beta_v","beta_h",
+                                        "alpha_v","alpha_h","disp_v","disp_h","temp_tr","temp_long"};
 
 std::map<std::string, Section> sections{
     {"SECTION_ION",Section::SECTION_ION},
@@ -75,7 +78,8 @@ std::map<std::string, Section> sections{
     {"SECTION_E_BEAM", Section::SECTION_E_BEAM},
     {"SECTION_ECOOL", Section::SECTION_ECOOL},
     {"SECTION_SIMULATION",Section::SECTION_SIMULATION},
-    {"SECTION_LUMINOSITY",Section::SECTION_LUMINOSITY}
+    {"SECTION_LUMINOSITY",Section::SECTION_LUMINOSITY},
+    {"SECTION_OPTIMIZATION",Section::SECTION_OPTIMIZATION}
 };
 
 // Remove everything from the first "#" in the string
@@ -573,8 +577,8 @@ void calculate_ecool(Set_ptrs &ptrs) {
     assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
     EcoolRateParas ecool_paras(n_sample);
 
-    force_paras = ChooseForce(ptrs.ecool_ptr->force);   
-    
+    force_paras = ChooseForce(ptrs.ecool_ptr->force);
+
     assert(ptrs.ion_beam.get()!=nullptr && "MUST CREATE THE ION BEAM BEFORE CALCULATE ELECTRON COOLING RATE!");
     assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATE ELECTRON COOLING RATE!");
     double rx, ry, rz;
@@ -801,6 +805,262 @@ void run_simulation(Set_ptrs &ptrs) {
     dynamic(*ptrs.ion_beam, *ptrs.cooler, *ptrs.e_beam, *ptrs.ring);
 }
 
+void define_optimizer(std::string &str,Set_optimizer *opt_args) {
+    //This does double-duty, handling parameterization for the Nelder-Mead optimizer
+    // as well as for the 1-d parameter scan
+    
+    assert(ptrs.dynamic_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR OPTIMIZATION!");
+
+    assert(cooler_args!=nullptr && "SECTION_COOLER MUST BE DEFINED FIRST!");
+    string::size_type idx = str.find("=");
+    assert(idx!=string::npos && "WRONG COMMAND IN SECTION_OPTIMIZER!");
+    string var = str.substr(0, idx);
+    string val = str.substr(idx+1);
+    var = trim_blank(var);
+    var = trim_tab(var);
+    val = trim_blank(val);
+    val = trim_tab(val);
+    
+    //If a variable repeats, then we'll know that the user intends to use
+    // its set values as bounds for a parameter scan.  Defining other 
+    // values to optimize over will throw an error. See the bottom of this
+    // function for the implementation.
+    
+    //Set the granularity (only used for 1d parameter scan), see below
+    if(var=="STEPS"){
+        opt_args->n_steps = std::stoi(val);
+    }
+    //Check if we've already got a parameter scan going:
+    else if(opt_args->min_max.size() > 0){ //we've already had a parameter repeat.
+        
+        //If a user has indicated that they want a parameter scan, the only 
+        // allowed var is "STEPS"
+        assert((var == opt_args->mod_names[0]) || (var == "STEPS") && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
+    }
+        
+    if (var=="SIGMA_X") {
+        opt_args->mod_names.push_back("sigma_x");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="SIGMA_Y") {
+        opt_args->mod_names.push_back("sigma_y");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="SIGMA_S") {
+        opt_args->mod_names.push_back("sigma_s");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="N_ELECTRON") {
+        opt_args->mod_names.push_back("n_electron");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="BETA_V") {
+        opt_args->mod_names.push_back("beta_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="BETA_H") {
+        opt_args->mod_names.push_back("beta_h");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="ALPHA_V") {
+        opt_args->mod_names.push_back("alpha_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="ALPHA_H") {
+        opt_args->mod_names.push_back("alpha_h");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="TEMP_TR"){
+        opt_args->mod_names.push_back("temp_tr");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="TEMP_LONG"){
+        opt_args->mod_names.push_back("temp_long");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_V") {
+        opt_args->mod_names.push_back("disp_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_H") {
+    opt_args->mod_names.push_back("disp_h");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_DER_V") {
+        opt_args->mod_names.push_back("disp_der_v");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="DISP_DER_H") {
+    opt_args->mod_names.push_back("disp_der_h");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+    else if (var=="BFIELD") {
+        opt_args->mod_names.push_back("bfield");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+        
+    else if (var=="LOG_C") {
+        opt_args->mod_names.push_back("log_c");
+        opt_args->initial_values.push_back(std::stod(val));
+    }
+
+    //Check if a variable has been defined twice, indicating a parameter scan.
+    // We'll know this if the set of uniques in opt_args->mod_names is 
+    // shorter than the actual list
+    std::set<string> uvec(opt_args->mod_names.begin(), opt_args->mod_names.end());
+    
+    if(uvec.size() < opt_args->mod_names.size()){
+        //We're in the parameter scan regime. Throw an error if there are other
+        // parameters present. Either the user meant to do a multi-dimensional 
+        // optimization and accidentally repeated one name, or they 
+        // don't know how the parameter scan works.
+        // Remove the current val and "STEPS" from the set of uniques and count the set length
+        uvec.erase(var);
+        uvec.erase("STEPS");
+        //If there's anything left, then throw an error
+        assert( uvec.size() > 1  && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
+        
+        //Store the defined value from this row as one of the limits of the search
+        opt_args->min_max.push_back(std::stod(val));        
+        
+        //Go back and grab the previously defined 'initial value' and 
+        // install it as the other scan limit, now that we know it's a 
+        // 1d scan. After the above assert, it'd better be the only element.
+        if(opt_args->min_max.size() < 2){
+            opt_args->min_max.push_back(opt_args->initial_values[0]);
+        }
+        
+        // go ahead and sort it so we know which is min and which is max.
+        // This way the user can define the min/max in any order
+        std::sort(opt_args->min_max.begin(), opt_args->min_max.end()); 
+    }    
+}
+
+void optimize_cooling(Set_ptrs &ptrs) {
+    //Set all the same parameters that run_simulation does, plus
+    // set the parameters and values from the optimization section
+    assert(ptrs.optimizer_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR OPTIMIZATION!");
+
+    bool ibs = ptrs.dynamic_ptr->ibs;
+    bool ecool = ptrs.dynamic_ptr->ecool;
+    bool fixed_bunch_length = ptrs.dynamic_ptr->fixed_bunch_length;
+
+        if(fixed_bunch_length) {
+        assert(ptrs.dynamic_ptr->model==DynamicModel::RMS&&"ERROR: THE PARAMETER FIXED_BUNCH_LENGTH WORKS ONLY FOR RMS MODEL");
+        assert(ptrs.ring->rf.gamma_tr>0&&"ERROR: DEFINE THE TRANSITION GAMMA OF THE RING WHEN THE PARAMETER FIXED_BUNCH_LENGTH IS CHOSEN");
+    }
+    double t = ptrs.dynamic_ptr->time;
+    int n_step = ptrs.dynamic_ptr->n_step;
+    int n_sample = ptrs.dynamic_ptr->n_sample;
+    int output_intvl = ptrs.dynamic_ptr->output_intvl;
+    int save_ptcl_intvl = ptrs.dynamic_ptr->save_ptcl_intvl;
+
+    if(ptrs.dynamic_ptr->model == DynamicModel::TURN_BY_TURN) {
+        double dt = ptrs.ring->circ()/(ptrs.ion_beam->beta()*k_c);
+        if (n_step>0) {
+            t = n_step * dt;
+        }
+        else if (t>0) {
+            n_step = ceil(t/dt);
+            t = n_step * dt;
+        }
+    }
+
+    assert(t>0 && n_step>0 && output_intvl>0 && "WRONG PARAMETERS FOR OPTIMIZATION!");
+    dynamic_paras = new DynamicParas(t, n_step, ibs, ecool);
+    dynamic_paras->set_model(ptrs.dynamic_ptr->model);
+    dynamic_paras->set_n_sample(n_sample);
+    dynamic_paras->set_fixed_bunch_length(fixed_bunch_length);
+    if (output_intvl>1) dynamic_paras->set_output_intvl(output_intvl);
+    if (save_ptcl_intvl>0) dynamic_paras->set_ion_save(save_ptcl_intvl);
+    dynamic_paras->set_model(ptrs.dynamic_ptr->model);
+    dynamic_paras->set_output_file(ptrs.dynamic_ptr->filename);
+    if (ptrs.dynamic_ptr->reset_time) dynamic_paras->set_reset_time(true);
+    else dynamic_paras->set_reset_time(false);
+    if (ptrs.dynamic_ptr->overwrite) dynamic_paras->set_overwrite(true);
+    else dynamic_paras->set_overwrite(false);
+    if (ptrs.dynamic_ptr->calc_luminosity) dynamic_paras->set_calc_lum(true);
+    else dynamic_paras->set_calc_lum(false);
+    if(dynamic_paras->model()==DynamicModel::PARTICLE && !ecool)
+        assert(n_sample>0 && "SET N_SAMPLE FOR SIMULATION!");
+
+    assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE SIMULATION!");
+
+    if (ecool) {
+        assert(ptrs.e_beam.get()!=nullptr && "NEED TO CREATE THE E_BEAM BEFORE SIMULATION!");
+        assert(ptrs.cooler.get()!=nullptr && "NEED TO CREATE THE COOLER BEFORE SIMULATION!");
+        assert(ptrs.ecool_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR ELECTRON COOLING RATE CALCULATION!");
+        if (n_sample<=0) {
+            n_sample = ptrs.ecool_ptr->n_sample;
+            assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
+            dynamic_paras->set_n_sample(n_sample);
+        }
+        ecool_paras = new EcoolRateParas(n_sample);
+        force_paras = ChooseForce(ptrs.ecool_ptr->force);
+    }
+
+    if(ibs) {
+        assert(ptrs.ibs_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR IBS RATE CALCULATION!");
+
+        calculate_ibs(ptrs, false);
+    }
+
+    if (ibs && !ecool && dynamic_paras->model()==DynamicModel::PARTICLE) {
+        assert(ptrs.dynamic_ptr->ref_bet_x>0 && ptrs.dynamic_ptr->ref_bet_y>0 && "WRONG VALUE FOR REFERENCE TWISS PARAMETERS");
+        dynamic_paras->twiss_ref.bet_x = ptrs.dynamic_ptr->ref_bet_x;
+        dynamic_paras->twiss_ref.bet_y = ptrs.dynamic_ptr->ref_bet_y;
+        dynamic_paras->twiss_ref.alf_x = ptrs.dynamic_ptr->ref_alf_x;
+        dynamic_paras->twiss_ref.alf_y = ptrs.dynamic_ptr->ref_alf_y;
+        dynamic_paras->twiss_ref.disp_x = ptrs.dynamic_ptr->ref_disp_x;
+        dynamic_paras->twiss_ref.disp_y = ptrs.dynamic_ptr->ref_disp_y;
+        dynamic_paras->twiss_ref.disp_dx = ptrs.dynamic_ptr->ref_disp_dx;
+        dynamic_paras->twiss_ref.disp_dy = ptrs.dynamic_ptr->ref_disp_dy;
+    }
+    // End of the region that's copied from run_simulation
+
+    Optimize *Oppo = new Optimize();
+
+    //Did our parsing of the inputs indicate that this is a 1d parameter scan?
+    // If so, 
+    if(ptrs.optimizer_ptr->min_max.size()>0){
+        
+        std::cout<<"Performing a 1-d parameter scan on "<<ptrs.optimizer_ptr->mod_names[0]
+            <<" from "<<ptrs.optimizer_ptr->min_max[0]<<" to "<<ptrs.optimizer_ptr->min_max[1]
+            <<" in "<<ptrs.optimizer_ptr->n_steps<<" steps:"<<std::endl;
+
+        
+        //If there's an IBS section defined, then use it in the parameter scan
+        if(ibs){
+            Oppo->SetDoIBS(true);
+        }
+
+
+        Oppo->ParameterScan_From_UI(ptrs.optimizer_ptr->mod_names,
+                                   ptrs.optimizer_ptr->min_max,
+                                   ptrs.optimizer_ptr->n_steps,
+                                   *ptrs.ion_beam,
+                                   *ptrs.cooler,
+                                   *ptrs.e_beam,
+                                   *ptrs.ring,
+                                   ptrs.ecool_ptr->force);
+    }
+    
+    else{
+        //Arg Params is a vector of string ID's for parameters,
+        // arg InitialValues is a vector of doubles, matched 1:1 with the params.
+        // This is done with vectors to allow for a variable number of
+        // floating parameters.
+
+        Oppo->Optimize_From_UI(ptrs.optimizer_ptr->mod_names,
+                               ptrs.optimizer_ptr->initial_values,
+                               *ptrs.ion_beam,
+                               *ptrs.cooler,
+                               *ptrs.e_beam,
+                               *ptrs.ring,
+                               ptrs.ecool_ptr->force);
+    }
+}
+
 void run(std::string &str, Set_ptrs &ptrs) {
     str = trim_blank(str);
     str = trim_tab(str);
@@ -831,6 +1091,9 @@ void run(std::string &str, Set_ptrs &ptrs) {
     }
     else if(str == "RUN_SIMULATION") {
         run_simulation(ptrs);
+    }
+    else if(str == "OPTIMIZE_COOLING") {
+        optimize_cooling(ptrs);
     }
     else {
         assert(false&&"Wrong arguments in section_run!");
