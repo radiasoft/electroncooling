@@ -39,7 +39,7 @@ muParserHandle_t math_parser = NULL;
 std::vector<string> ION_ARGS = {"CHARGE_NUMBER", "MASS", "KINETIC_ENERGY", "NORM_EMIT_X", "NORM_EMIT_Y",
     "MOMENTUM_SPREAD", "PARTICLE_NUMBER", "RMS_BUNCH_LENGTH"};
 std::vector<string> RUN_COMMANDS = {"CREATE_ION_BEAM", "CREATE_RING", "CREATE_E_BEAM", "CREATE_COOLER",
-    "CALCULATE_IBS", "CALCULATE_ECOOL", "TOTAL_EXPANSION_RATE", "RUN_SIMULATION", "CALCULATE_LUMINOSITY", "OPTIMIZE_COOLING", "PARAMETER_SCAN"};
+    "CALCULATE_IBS", "CALCULATE_ECOOL", "TOTAL_EXPANSION_RATE", "RUN_SIMULATION", "CALCULATE_LUMINOSITY", "OPTIMIZE_COOLING"};
 std::vector<string> RING_ARGS = {"LATTICE", "QX", "QY", "QS", "GAMMA_TR", "RF_V", "RF_H", "RF_PHI"};
 std::vector<string> IBS_ARGS = {"NU","NV","NZ","LOG_C","COUPLING","MODEL","IBS_BY_ELEMENT"};
 std::vector<string> COOLER_ARGS = {"LENGTH", "SECTION_NUMBER", "MAGNETIC_FIELD", "BET_X", "BET_Y", "DISP_X", "DISP_Y",
@@ -806,9 +806,10 @@ void run_simulation(Set_ptrs &ptrs) {
 }
 
 void define_optimizer(std::string &str,Set_optimizer *opt_args) {
+
     //This does double-duty, handling parameterization for the Nelder-Mead optimizer
     // as well as for the 1-d parameter scan
-    
+
     assert(ptrs.dynamic_ptr.get()!=nullptr && "PLEASE SET UP THE PARAMETERS FOR OPTIMIZATION!");
 
     assert(cooler_args!=nullptr && "SECTION_COOLER MUST BE DEFINED FIRST!");
@@ -820,24 +821,24 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     var = trim_tab(var);
     val = trim_blank(val);
     val = trim_tab(val);
-    
+
     //If a variable repeats, then we'll know that the user intends to use
-    // its set values as bounds for a parameter scan.  Defining other 
+    // its set values as bounds for a parameter scan.  Defining other
     // values to optimize over will throw an error. See the bottom of this
     // function for the implementation.
-    
+
     //Set the granularity (only used for 1d parameter scan), see below
     if(var=="STEPS"){
         opt_args->n_steps = std::stoi(val);
     }
     //Check if we've already got a parameter scan going:
     else if(opt_args->min_max.size() > 0){ //we've already had a parameter repeat.
-        
-        //If a user has indicated that they want a parameter scan, the only 
+
+        //If a user has indicated that they want a parameter scan, the only
         // allowed var is "STEPS"
         assert((var == opt_args->mod_names[0]) || (var == "STEPS") && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
     }
-        
+
     if (var=="SIGMA_X") {
         opt_args->mod_names.push_back("sigma_x");
         opt_args->initial_values.push_back(std::stod(val));
@@ -904,35 +905,35 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     }
 
     //Check if a variable has been defined twice, indicating a parameter scan.
-    // We'll know this if the set of uniques in opt_args->mod_names is 
+    // We'll know this if the set of uniques in opt_args->mod_names is
     // shorter than the actual list
     std::set<string> uvec(opt_args->mod_names.begin(), opt_args->mod_names.end());
-    
+
     if(uvec.size() < opt_args->mod_names.size()){
         //We're in the parameter scan regime. Throw an error if there are other
-        // parameters present. Either the user meant to do a multi-dimensional 
-        // optimization and accidentally repeated one name, or they 
+        // parameters present. Either the user meant to do a multi-dimensional
+        // optimization and accidentally repeated one name, or they
         // don't know how the parameter scan works.
         // Remove the current val and "STEPS" from the set of uniques and count the set length
         uvec.erase(var);
         uvec.erase("STEPS");
         //If there's anything left, then throw an error
         assert( uvec.size() > 1  && "REPEAT OPTIMIZER VALUE OR TOO MANY PARAMETERS FOR A 1-D SCAN");
-        
+
         //Store the defined value from this row as one of the limits of the search
-        opt_args->min_max.push_back(std::stod(val));        
-        
-        //Go back and grab the previously defined 'initial value' and 
-        // install it as the other scan limit, now that we know it's a 
+        opt_args->min_max.push_back(std::stod(val));
+
+        //Go back and grab the previously defined 'initial value' and
+        // install it as the other scan limit, now that we know it's a
         // 1d scan. After the above assert, it'd better be the only element.
         if(opt_args->min_max.size() < 2){
             opt_args->min_max.push_back(opt_args->initial_values[0]);
         }
-        
+
         // go ahead and sort it so we know which is min and which is max.
         // This way the user can define the min/max in any order
-        std::sort(opt_args->min_max.begin(), opt_args->min_max.end()); 
-    }    
+        std::sort(opt_args->min_max.begin(), opt_args->min_max.end());
+    }
 }
 
 void optimize_cooling(Set_ptrs &ptrs) {
@@ -980,7 +981,6 @@ void optimize_cooling(Set_ptrs &ptrs) {
     else dynamic_paras->set_overwrite(false);
     if (ptrs.dynamic_ptr->calc_luminosity) dynamic_paras->set_calc_lum(true);
     else dynamic_paras->set_calc_lum(false);
-
     if(dynamic_paras->model()==DynamicModel::PARTICLE && !ecool)
         assert(n_sample>0 && "SET N_SAMPLE FOR SIMULATION!");
 
@@ -1020,16 +1020,15 @@ void optimize_cooling(Set_ptrs &ptrs) {
 
     Optimize *Oppo = new Optimize();
 
-    
     //Did our parsing of the inputs indicate that this is a 1d parameter scan?
-    // If so, 
+    // If so,
     if(ptrs.optimizer_ptr->min_max.size()>0){
-        
+
         std::cout<<"Performing a 1-d parameter scan on "<<ptrs.optimizer_ptr->mod_names[0]
             <<" from "<<ptrs.optimizer_ptr->min_max[0]<<" to "<<ptrs.optimizer_ptr->min_max[1]
             <<" in "<<ptrs.optimizer_ptr->n_steps<<" steps:"<<std::endl;
 
-        
+
         //If there's an IBS section defined, then use it in the parameter scan
         if(ibs){
             Oppo->SetDoIBS(true);
@@ -1045,7 +1044,7 @@ void optimize_cooling(Set_ptrs &ptrs) {
                                    *ptrs.ring,
                                    ptrs.ecool_ptr->force);
     }
-    
+
     else{
         //Arg Params is a vector of string ID's for parameters,
         // arg InitialValues is a vector of doubles, matched 1:1 with the params.
@@ -1061,6 +1060,7 @@ void optimize_cooling(Set_ptrs &ptrs) {
                                ptrs.ecool_ptr->force);
     }
 }
+
 
 void run(std::string &str, Set_ptrs &ptrs) {
     str = trim_blank(str);

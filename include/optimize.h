@@ -36,7 +36,7 @@ class Optimize{
 
     int n_trials = 15;
     bool do_ibs_ = false;
-    
+
     public:
      //Store some parameters we don't scan over,
      // including ion beam info.
@@ -98,12 +98,12 @@ class Optimize{
                               EBeam*,
                               ForceFormula ff);
 
-        std::map<int, vector<double> >ParameterScan(string scan_par, 
-                           double par_min, 
-                           double par_max, 
+        std::map<int, vector<double> >ParameterScan(string scan_par,
+                           double par_min,
+                           double par_max,
                            int n_steps,
                            opt_info params);
-    
+
         void OptimizeTrial();
         void ManyTrials();
         //A function to access the optimization from the UI
@@ -114,12 +114,12 @@ class Optimize{
                              EBeam &ebeam,
                              Ring &ring,
                              ForceFormula ff);
-    
-        int ParameterScan_From_UI(std::vector<std::string> Params, 
+
+        int ParameterScan_From_UI(std::vector<std::string> Params,
                                   std::vector<double>min_max,
                                   int n_steps,
-                                  Beam &ion, Cooler &cooler, 
-                                  EBeam &ebeam, Ring &ring, 
+                                  Beam &ion, Cooler &cooler,
+                                  EBeam &ebeam, Ring &ring,
                                   ForceFormula ff);
 
 
