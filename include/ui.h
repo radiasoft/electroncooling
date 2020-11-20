@@ -147,6 +147,8 @@ struct Set_luminosity{
 struct Set_optimizer{
     std::vector<std::string> mod_names;
     std::vector<double> initial_values;
+    std::vector<double> min_max; //limits for 1d parameter scan
+    int n_steps = 0; //for 1d parameter scan
 };
 
 
