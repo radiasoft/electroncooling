@@ -29,7 +29,7 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
 //Compiler should ignore #pragma it doesn't understand, but we'll place a condition
 // so OpenMP can be easily turned off for debugging
 #ifdef _OPENMP
-    #pragma omp parallel for num_threads(5)
+    #pragma omp parallel for num_threads(20)
 #endif
 //Compiler should ignore #pragma it doesn't understand
     for(unsigned long int i=0; i<ion_number; ++i){
@@ -49,7 +49,7 @@ int ForceParas::ApplyForce(int charge_number, unsigned long int ion_number, doub
                             double *force_tr, double *force_long, bool do_test) {
     
 #ifdef _OPENMP
-    #pragma omp parallel for num_threads(5)
+    #pragma omp parallel for num_threads(20)
 #endif
 //Compiler should ignore #pragma it doesn't understand
     for(unsigned long int i=0; i<ion_number; ++i){

@@ -78,13 +78,10 @@ class EBeamShape{
     //(cx, cy, cz) is the relative position of the ion beam center to the electron beam center.
     virtual int density(double *x, double *y, double *z, Beam &ebeam, double *ne, unsigned int n, double cx,
                             double cy, double cz)=0;
-    virtual Shape shape()   = 0;
-    virtual bool bunched()  = 0;
-    virtual double length() = 0; //For bunched electron beam, return full length of the electron bunch.
-    virtual double neutralisation() = 0;
-    virtual double n_electron() = 0;
-    virtual double sigma_x() = 0;
-    virtual double sigma_y() = 0;
+    virtual Shape shape()=0;
+    virtual bool bunched() = 0;
+    virtual double length()=0; //For bunched electron beam, return full length of the electron bunch.
+    virtual double neutralisation()=0;
     EBeamShape(){};
 };
 
@@ -101,9 +98,6 @@ class UniformCylinder: public EBeamShape{
     double neutralisation(){return neutralisation_;}
     Shape shape(){return Shape::UNIFORM_CYLINDER;}
     double length(){perror("length() not defined for UniformCylinder, which is coasting"); return 0;}
-    double n_electron(){perror("n_electron() not defined for UniformCylinder, which is coasting"); return 0;}
-    double sigma_x(){return radius_;}
-    double sigma_y(){return radius_;}
     bool bunched(){return false;}
     UniformCylinder(double current, double radius, double neutralisation=2):current_(current),radius_(radius),
                     neutralisation_(neutralisation){};
@@ -124,9 +118,6 @@ class UniformHollow: public EBeamShape {
     double neutralisation(){return neutralisation_;}
     Shape shape(){return Shape::UNIFORM_HOLLOW;}
     double length(){perror("length() not defined for UniformHollow, which is coasting"); return 0;}
-    double n_electron(){perror("n_electron() not defined for UniformHollow, which is coasting"); return 0;}
-    double sigma_x(){perror("sigma_x() not defined for UniformHollow"); return 0;}
-    double sigma_y(){perror("sigma_y() not defined for UniformHollow"); return 0;}
     bool bunched(){return false;}
     UniformHollow(double current, double in_radius, double out_radius, double neutralisation=2):current_(current),
         in_radius_(in_radius), out_radius_(out_radius),neutralisation_(neutralisation){};
@@ -149,9 +140,6 @@ class UniformHollowBunch: public EBeamShape {
     Shape shape(){return Shape::UNIFORM_HOLLOW_BUNCH;}
     double length(){return length_;}
     bool bunched(){return true;}
-    double n_electron(){perror("n_electron() not defined for UniformHollowBunch"); return 0;}
-    double sigma_x(){perror("sigma_x() not defined for UniformHollowBunch"); return 0;}
-    double sigma_y(){perror("sigma_y() not defined for UniformHollowBunch"); return 0;}
     UniformHollowBunch(double current, double in_radius, double out_radius, double length, double neutralisation=2):current_(current),
         in_radius_(in_radius), out_radius_(out_radius), neutralisation_(neutralisation), length_(length) {}
 };
@@ -167,11 +155,8 @@ class GaussianBunch: public EBeamShape{
     int density(double *x, double *y, double *z, Beam &ebeam, double *ne, unsigned int n_particle, double cx, double cy,
                 double cz);
     Shape shape(){return Shape::GAUSSIAN_BUNCH;}
-    double length(){return sigma_s_;}//double length(){return 6*sigma_s_;} //why was this multiplied by 6?
+    double length(){return 6*sigma_s_;}
     bool bunched(){return true;}
-    double n_electron(){return n_electron_;}
-    double sigma_x(){return sigma_x_;}
-    double sigma_y(){return sigma_y_;}
     double neutralisation(){return neutralisation_;}
     GaussianBunch(double n_electron, double sigma_x, double sigma_y, double sigma_s):n_electron_(n_electron),
                 sigma_x_(sigma_x),sigma_y_(sigma_y),sigma_s_(sigma_s){};
@@ -192,9 +177,6 @@ public:
     bool bunched(){return true;}
     double current(){return current_;}
     double radius(){return radius_;}
-    double sigma_x(){return radius_;}
-    double sigma_y(){return radius_;}
-    double n_electron(){perror("n_electron() not defined for UniformBunch, use current() instead"); return 0;}
     double neutralisation(){return neutralisation_;}
 //    UniformCylinder(double I, double radius, double neutralisation):Shape(ShapeList::uniformCylinder),I(I),radius(radius),neutralisation(neutralisation){};
     UniformBunch(double current, double radius, double length, double neutralisation=2):current_(current),radius_(radius),
@@ -215,9 +197,6 @@ public:
     Shape shape(){return Shape::ELLIPTIC_UNIFORM_BUNCH;}
     double length(){return length_;}
     bool bunched(){return true;}
-    double n_electron(){perror("n_electron() not defined for EllipticUniformBunch"); return 0;}
-    double sigma_x(){return rh_;}
-    double sigma_y(){return rv_;}
     double neutralisation(){return neutralisation_;}
     EllipticUniformBunch(double current, double rh, double rv, double length, double neutralisation=2):current_(current),
             rh_(rh),rv_(rv),length_(length),neutralisation_(neutralisation){};
@@ -245,9 +224,6 @@ public:
     Shape shape(){return Shape::PARTICLE_BUNCH;}
     double length(){return length_;}
     bool bunched(){return true;}
-    double n_electron(){return n_electron_;}
-    double sigma_x(){perror("sigma_x() not defined for ParticleBunch"); return 0;}
-    double sigma_y(){perror("sigma_y() not defined for ParticleBunch"); return 0;}
     bool corr(){return v_x_corr_;}
     void set_corr(bool corr = true){v_x_corr_ = corr;}
     void set_buffer(int n) {buffer_ = n;}
@@ -295,10 +271,7 @@ class EBeam:public Beam{
     int n_particle(){perror("This function is not defined for cooling electron beam"); return 1;}
     bool bunched(){return shape_->bunched();}
     double length(){return shape_->length();}
-    double n_electron(){return shape_->n_electron();}
-    double sigma_x(){return shape_->sigma_x();}
-    double sigma_y(){return shape_->sigma_y();}
-    
+
     EBeam(double gamma, double tmp_tr, double tmp_long, EBeamShape &shape_defined);
     EBeam(double gamma, EBeamShape &shape_defined);
     EBeam(const EBeam&);
