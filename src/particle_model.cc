@@ -110,9 +110,9 @@ void apply_cooling_kick(double t_cooler, double freq, double dt) {
         #pragma omp parallel for num_threads(5)
     #endif
     for(unsigned int i=0; i<n_sample; ++i) {
-        xp[i] = !iszero(xp[i])?xp[i]*exp(force_x[i]*t_cooler*dt*freq/(xp[i]*p0)):xp[i];
-        yp[i] = !iszero(yp[i])?yp[i]*exp(force_y[i]*t_cooler*dt*freq/(yp[i]*p0)):yp[i];
-        dp_p[i] = !iszero(dp_p[i])?dp_p[i]*exp(force_z[i]*t_cooler*dt*freq/(dp_p[i]*p0)):dp_p[i];
+        xp[i] = !iszero(xp[i]) ? xp[i] * exp( force_x[i] * t_cooler * dt * freq / (xp[i] * p0) ) : xp[i];
+        yp[i] = !iszero(yp[i]) ? yp[i] * exp( force_y[i] * t_cooler * dt * freq / (yp[i] * p0) ) : yp[i];
+        dp_p[i] = !iszero(dp_p[i]) ? dp_p[i] * exp( force_z[i] * t_cooler * dt * freq / (dp_p[i] * p0) ) : dp_p[i];
 //        xp[i] = xp[i]!=0?xp[i]*exp(force_x[i]*t_cooler*dt*freq/(xp[i]*p0)):xp[i];
 //        yp[i] = yp[i]!=0?yp[i]*exp(force_y[i]*t_cooler*dt*freq/(yp[i]*p0)):yp[i];
 //        dp_p[i] = dp_p[i]!=0?dp_p[i]*exp(force_z[i]*t_cooler*dt*freq/(dp_p[i]*p0)):dp_p[i];
@@ -193,6 +193,7 @@ void move_particles(Beam &ion, Ring &ring) {
 
 void update_beam_parameters(Beam &ion) {
     double emit_x = emit(x_bet.get(), xp_bet.get(), n_sample);
+    double dummy = emit_fit(x_bet.get(),xp_bet.get(),n_sample);
     double emit_y = emit(y_bet.get(), yp_bet.get(), n_sample);
     double dp = sqrt(emit_p(dp_p.get(), n_sample));
 

@@ -7,7 +7,7 @@
 #include "cooler.h"
 #include "force.h"
 #include "functions.h"
-#include "ring.h"
+#include "fit.h"
 
 #include <fstream>
 #include <vector>
@@ -33,7 +33,7 @@ EcoolRateParas::EcoolRateParas(const EcoolRateParas& old_ecool){
     n_long_ = old_ecool.n_long();
     shift_ = old_ecool.shift();
     bunch_separate_ = old_ecool.bunch_separate();
-    n_long_sample_ = old_ecool.n_long_sample();    
+    n_long_sample_ = old_ecool.n_long_sample();
 }
 
 //Initialize the scratch variables for electron cooling rate calculation.
@@ -78,15 +78,44 @@ double emit(double * x, double * xp, unsigned int n){
     for(unsigned int i=0; i<n; ++i){
         double x_adj = x[i]-x_mean;
         double xp_adj = xp[i]-xp_mean;
-        dlt2_x += x_adj*x_adj;
-        dlt2_xp += xp_adj*xp_adj;
-        dlt_xxp += x_adj*xp_adj;
+        dlt2_x += x_adj * x_adj;
+        dlt2_xp += xp_adj * xp_adj;
+        dlt_xxp += x_adj * xp_adj;
     }
 //    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
-    emit = sqrt(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp)/n;
-    
+    emit = sqrt( dlt2_x * dlt2_xp - dlt_xxp * dlt_xxp )/n;
+
     return emit;
 }
+
+
+
+double emit_fit(double *x, double * xp, unsigned int n)
+{
+
+    double x_mean, xp_mean;
+    double x_sigma, xp_sigma;
+    double x_amplitude,xp_amplitude;
+    int n_bins = 1000;
+
+    fit *fitter = new fit();
+    fitter->gaus_fit(x,n,&x_amplitude,&x_mean,&x_sigma,n_bins);
+    fitter->gaus_fit(xp,n,&xp_amplitude,&xp_mean,&xp_sigma,n_bins);
+
+    double dlt2_x = x_sigma * x_sigma * n;
+    double dlt2_xp = xp_sigma * xp_sigma * n;
+    double dlt_xxp = 0;
+    for(unsigned int i=0; i<n; ++i){
+        double x_adj = x[i]-x_mean;
+        double xp_adj = xp[i]-xp_mean;
+        dlt_xxp += x_adj * xp_adj;
+    }
+//    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
+    double emit = sqrt( dlt2_x * dlt2_xp - dlt_xxp * dlt_xxp )/n;
+
+    return emit;
+}
+
 
 //Calculate the longitudinal emittance as (dp/p)^2/n
 double emit_p(double * dp_p, unsigned int n){
@@ -99,10 +128,10 @@ double emit_p(double * dp_p, unsigned int n){
 
     for(unsigned int i=0; i<n; ++i){
         double dp_p_adj = dp_p[i] - dp_p_mean;
-        emit_p += dp_p_adj*dp_p_adj;
+        emit_p += dp_p_adj * dp_p_adj;
     }
     emit_p /= n;
-       
+
     return emit_p;
 }
 
@@ -116,7 +145,7 @@ double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n){
 
     for(unsigned int i=0; i<n; ++i){
         double dp_p_adj = dp_p[i] - dp_p_mean;
-        emit_p += dp_p_adj*dp_p_adj;
+        emit_p += dp_p_adj * dp_p_adj;
     }
 
     double emit_s = 0;
@@ -133,7 +162,7 @@ double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n){
     emit_s /= (ring.beta_s()*ring.beta_s());
 
     emit_p = (emit_p + emit_s)/n;
-        
+
     return emit_p;
 }
 
@@ -926,38 +955,38 @@ int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &io
 
 //Fix V_tr or V_long and calculate the force at different values.
 // Using the built-in functions within ecooling to initialize all the
-// variables as in an ecooling calculation, but then swapping out the 
+// variables as in an ecooling calculation, but then swapping out the
 // velocities to calculate the forces needed for plotting.
 int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &ion, Cooler &cooler, EBeam &ebeam,
                   Ring &ring){
 
-    
+
     //Initialize the scratch variables based on the beam configuration
     // defined by all the function arguments
     config_ecooling(ecool_paras, ion);
-    
+
     //Create the ion samples
     ion_sample(ecool_paras, ion, ring, cooler);
-    
+
     unsigned int n_sample = ecool_paras.n_sample();
-    
-    //Calculate the electron density for each ion   
+
+    //Calculate the electron density for each ion
     electron_density(ecool_paras, ion, ebeam);
-    
+
     //Phase space variables to dynamic variables
     space_to_dynamic(n_sample, ion);
-    
+
     //Time through the cooler
     t_cooler = cooler.length()/(ion.beta()*k_c);
 
     //Transfer into e- beam frame
     beam_frame(n_sample, ebeam.gamma());
-    
-    //In the beam frame, determine the max/min velocities in v_long 
+
+    //In the beam frame, determine the max/min velocities in v_long
     // and v_tr in the specified beam configuration
     double v_long_max, v_tr_max, ne_max = - DBL_MAX;
     double v_long_min, v_tr_min, ne_min = DBL_MAX;
- 
+
     for(int i=0;i<n_sample;i++){
         if(v_long[i] > v_long_max) {
             if(v_long[i] < k_c) v_long_max = v_long[i];
@@ -965,34 +994,34 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
         if(v_tr[i]   > v_tr_max) {
             if(v_tr[i] < k_c)   v_tr_max = v_tr[i];
         }
-        
+
         if(v_long[i] < v_long_min){
             if(v_long[i] > -k_c) v_long_min = v_long[i];
         }
         if(v_tr[i]   < v_tr_min) {
             if(v_tr[i] > -k_c)   v_tr_min = v_tr[i];
         }
-        
+
         if(ne[i] > ne_max) ne_max = ne[i];
-        if(ne[i] < ne_min) ne_min = ne[i];   
+        if(ne[i] < ne_min) ne_min = ne[i];
     }
 
-    //Protect against some extraneous large values    
+    //Protect against some extraneous large values
     // that wreck our v_interval. This was observed
-    //only once and wasn't reproducible.    
+    //only once and wasn't reproducible.
     //Enforce speed limits.
     if(v_tr_min < -k_c) v_tr_min = -k_c;
     if(v_tr_max > k_c) v_tr_max = k_c;
-    
+
     //TODO: This is a temporary (permenant?) hack to fix the velocities that are calculated
     v_tr_max = 6e5;
     v_tr_min = 0;
     v_long_max = 6e5;
     v_long_min = -6e5;
-    
+
 
     //Define the values of the velocities for reporting
-    // on the dependence of v_long. We set v_long = 0 for 
+    // on the dependence of v_long. We set v_long = 0 for
     // calculating f_tr, and v_tr = 0 for calculating f_long.
     double v_interval = (v_tr_max - v_tr_min)/n_sample;
 
@@ -1007,7 +1036,7 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     //Our v_tr values are already set. Zero out v_long
     for(int i=0;i<n_sample;i++){
         v_tr[i] = v_tr_min + (double)i*v_interval;
-        v_long[i] = 0.0;   
+        v_long[i] = 0.0;
         //yp[i]  = 0.0 ; // Focus on transverse only in x direction
         ne[i] = ne_max;  //We need a constant n_e for a smooth plot
     }
@@ -1019,7 +1048,7 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     // calculate f_long
     std::vector< double > v_tmp;
     std::vector< double > f_tmp;
-    
+
     for(int i=0;i<n_sample;i++){
         v_tmp.push_back(v_tr[i]);
         f_tmp.push_back(force_x[i]);
@@ -1029,7 +1058,7 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     v_interval = (v_long_max - v_long_min)/n_sample;
     for(int i=0;i<n_sample;i++){
         v_long[i]  = v_long_min + (double)i*v_interval;
-        v_tr[i]    = 0.0;   
+        v_tr[i]    = 0.0;
         force_x[i] = 0.0;
         force_y[i] = 0.0;
         force_z[i] = 0.0;
@@ -1063,14 +1092,14 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
         v_tr[i]    = v_tmp[i];
         force_x[i] = f_tmp[i];
     }
-    
+
     //We don't want to transfer the velocities back to lab frame
-    //lab_frame(n_sample, ebeam.gamma());  
+    //lab_frame(n_sample, ebeam.gamma());
     //end_ecooling(ecool_paras, ion);
 
-    //TODO: Betacool shows this as a 2d contour plot. Should we instead calculate 
+    //TODO: Betacool shows this as a 2d contour plot. Should we instead calculate
     // on a grid to prepare for this kind of plot in the future?
-    
-           
+
+
     return 0;
 }
