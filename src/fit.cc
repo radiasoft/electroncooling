@@ -9,6 +9,34 @@ double gaussian(const double a, const double b, const double c, const double t)
   return (a * exp(-0.5 * z * z));
 }
 
+double double_gaussian(const double a1, const double b1, const double c1, const double a2, const double b2, const double c2, const double t)
+{
+  //Force the '2' to be the component that's the widest
+  double a_wide,a_narrow,b_wide,b_narrow,c_wide,c_narrow;
+
+  if(c2 > c1){
+    a_wide = a2;
+    b_wide = b2;
+    c_wide = c2;
+    a_narrow = a1;
+    b_narrow = b1;
+    c_narrow = c1;
+  }
+  else{
+    a_wide = a1;
+    b_wide = b1;
+    c_wide = c1;
+    a_narrow = a2;
+    b_narrow = b2;
+    c_narrow = c2;
+  }
+
+  const double z1 = (t - b_narrow) / c_narrow;
+  const double z2 = (t - b_wide) / c_wide;
+  const double g1 = a_narrow * exp(-0.5 * z1 * z1);
+  const double g2 = a_wide * exp(-0.5 * z2 * z2);
+  return ( g1 + g2 );
+}
 
 int func_f (const gsl_vector * x, void *params, gsl_vector * f)
 {
@@ -101,6 +129,7 @@ void fit::callback(const size_t iter, void *params,
   /* compute reciprocal condition number of J(x) */
   gsl_multifit_nlinear_rcond(&rcond, w);
 
+  /*
   fprintf(stderr, "iter %2zu: a = %.4f, b = %.4f, c = %.4f, |a|/|v| = %.4f cond(J) = %8.4f, |f(x)| = %.4f\n",
           iter,
           gsl_vector_get(x, 0),
@@ -109,6 +138,7 @@ void fit::callback(const size_t iter, void *params,
           avratio,
           1.0 / rcond,
           gsl_blas_dnrm2(f));
+  */
 }
 
 void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
@@ -128,19 +158,12 @@ void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
   int info;
   double chisq0, chisq, rcond;
 
-  std::cout<<"Initializing solver"<<std::endl;
-
   /* initialize solver */
 
-  std::cout<<x->size<<" "<<n<<" "<<p<<" "<<std::endl;
   gsl_multifit_nlinear_init(x, fdf, work);
-
-  std::cout<<"Store initial cost"<<std::endl;
 
   /* store initial cost */
   gsl_blas_ddot(f, f, &chisq0);
-
-  std::cout<<"Iterating..."<<std::endl;
 
   /* iterate until convergence */
   gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol,
@@ -154,7 +177,8 @@ void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 
   gsl_vector_memcpy(x, y);
 
-  /* print summary */
+
+  /* print summary
 
   fprintf(stderr, "NITER         = %zu\n", gsl_multifit_nlinear_niter(work));
   fprintf(stderr, "NFEV          = %zu\n", fdf->nevalf);
@@ -165,7 +189,7 @@ void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
   fprintf(stderr, "final x       = (%.12e, %.12e, %12e)\n",
           gsl_vector_get(x, 0), gsl_vector_get(x, 1), gsl_vector_get(x, 2));
   fprintf(stderr, "final cond(J) = %.12e\n", 1.0 / rcond);
-
+  */
   gsl_multifit_nlinear_free(work);
 }
 
@@ -182,12 +206,12 @@ void fit::histogram(const double *x, int n, int n_bins, struct data *output){
   gsl_histogram_set_ranges_uniform (h, x_low, x_max);
 
   for(int i=0;i<n;i++){
-    gsl_histogram_increment (h, vec[n]);
+    gsl_histogram_increment (h, x[i]);
   }
 
   output->t = new double[n_bins];
   output->y = new double[n_bins];
-  output->n = n;
+  output->n = n_bins;
 
   for(int i=0;i<n_bins;i++){
       double lower, upper;
@@ -195,35 +219,20 @@ void fit::histogram(const double *x, int n, int n_bins, struct data *output){
       output->t[i] = 0.5*((lower + upper));
       output->y[i] = gsl_histogram_get(h, i);
   }
-
 }
 
 void fit::gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, double *sigma, int n_bins=200){
 
-
   const size_t p = 3;    /* number of model parameters */
 
-  gsl_vector *f = gsl_vector_alloc(n);
   gsl_vector *xv = gsl_vector_alloc(p);
   gsl_multifit_nlinear_fdf fdf;
   gsl_multifit_nlinear_parameters fdf_params = gsl_multifit_nlinear_default_parameters();
 
   //Histogram the distribution
   struct data fit_data;
+
   histogram(x,n,n_bins,&fit_data);
-
-  for(int i=0;i<n_bins;i++){
-    std::cout<<fit_data.t[i]<<" ";
-      }
-  std::cout<<std::endl;
-
-  for(int i=0;i<n_bins;i++){
-    if(fit_data.y[i] != 0.0){
-      std::cout<<fit_data.y[i]<<" ";
-    }
-  }
-  std::cout<<std::endl;
-
 
   fdf.f   =  &func_f;
   fdf.df  =  &func_df;
@@ -237,18 +246,66 @@ void fit::gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, d
   gsl_vector_set(xv, 1, 0.0);    //Center
   gsl_vector_set(xv, 2, 0.01);   //Width
 
+  //fdf_params.trs = gsl_multifit_nlinear_trs_lm;
   fdf_params.trs = gsl_multifit_nlinear_trs_lmaccel;
-
-  std::cout<<"Solving system"<<std::endl;
 
   solve_system(xv, &fdf, &fdf_params);
 
+  //Set the outputs
   *amplitude = gsl_vector_get(xv, 0);
   *mean      = gsl_vector_get(xv, 1);
   *sigma     = gsl_vector_get(xv, 2);
 
-  std::cout<<amplitude<<" "<<mean<<" "<<sigma<<std::endl;
+  //  std::cout<<"Amplitude: "<<gsl_vector_get(xv, 0)<<" mean "<<gsl_vector_get(xv, 1)<<" sigma "<<gsl_vector_get(xv, 2)<<std::endl;
 
-  gsl_vector_free(f);
+  gsl_vector_free(xv);
+}
+
+void fit::double_gaus_fit(double *x, unsigned int n, double *amplitude1, double *mean1, double *sigma1,double *amplitude2, double *mean2, double *sigma2, int n_bins=200){
+
+  const size_t p = 6;    /* number of model parameters */
+
+  gsl_vector *xv = gsl_vector_alloc(p);
+  gsl_multifit_nlinear_fdf fdf;
+  gsl_multifit_nlinear_parameters fdf_params = gsl_multifit_nlinear_default_parameters();
+
+  //Histogram the distribution
+  struct data fit_data;
+
+  histogram(x,n,n_bins,&fit_data);
+
+  fdf.f   =  &func_f;
+  fdf.df  =  &func_df;
+  fdf.fvv =  &func_fvv;
+  fdf.n   =  n_bins;
+  fdf.p   =  p;
+  fdf.params = &fit_data;
+
+  /* starting point */
+  gsl_vector_set(xv, 0, 2000.0); //Amplitude1
+  gsl_vector_set(xv, 1, 0.0);    //Center1
+  gsl_vector_set(xv, 2, 0.01);   //Width1
+
+  //Curve 2 is defined as having the wider distribution
+  gsl_vector_set(xv, 3, 2000.0); //Amplitude2
+  gsl_vector_set(xv, 4, 0.0);    //Center2
+  gsl_vector_set(xv, 5, 0.1);   //Width2
+
+  //Use Geodesic Acceleration?
+  //fdf_params.trs = gsl_multifit_nlinear_trs_lm;  #Slower, no acceleration
+  fdf_params.trs = gsl_multifit_nlinear_trs_lmaccel;
+
+  solve_system(xv, &fdf, &fdf_params);
+
+  //Set the outputs
+  *amplitude1 = gsl_vector_get(xv, 0);
+  *mean1      = gsl_vector_get(xv, 1);
+  *sigma1     = gsl_vector_get(xv, 2);
+  *amplitude2 = gsl_vector_get(xv, 3);
+  *mean2      = gsl_vector_get(xv, 4);
+  *sigma2     = gsl_vector_get(xv, 5);
+
+  //  std::cout<<"Amplitude: "<<gsl_vector_get(xv, 0)<<" mean "<<gsl_vector_get(xv, 1)<<" sigma "<<gsl_vector_get(xv, 2)<<std::endl;
+
   gsl_vector_free(xv);
 }
