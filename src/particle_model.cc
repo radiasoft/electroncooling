@@ -192,9 +192,15 @@ void move_particles(Beam &ion, Ring &ring) {
 }
 
 void update_beam_parameters(Beam &ion) {
-    double emit_x = emit(x_bet.get(), xp_bet.get(), n_sample);
-    double dummy = emit_fit(x_bet.get(),xp_bet.get(),n_sample);
-    double emit_y = emit(y_bet.get(), yp_bet.get(), n_sample);
+    //double emit_x = emit(x_bet.get(), xp_bet.get(), n_sample);
+    //Try out the emittance fit caculations
+    //double emitfit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample);
+    double emit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample);
+
+    //std::cout<<"Emittance: "<<emit_x<<" "<<emitfit_x<<std::endl;
+
+    //double emit_y = emit(y_bet.get(), yp_bet.get(), n_sample);
+    double emit_y = emit_fit(y_bet.get(), yp_bet.get(), n_sample);
     double dp = sqrt(emit_p(dp_p.get(), n_sample));
 
     ion.set_emit_x(emit_x);

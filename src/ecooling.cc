@@ -13,6 +13,14 @@
 #include <vector>
 #include <float.h>
 
+//For fit test
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_multifit_nlinear.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+
 std::unique_ptr<double []> x_bet, xp_bet, y_bet, yp_bet, ds, dp_p, x, y, xp, yp, ne;
 std::unique_ptr<double []> force_x, force_y, force_z, v_tr, v_long;
 std::unique_ptr<double []> x_spl, xp_spl, y_spl, yp_spl, ds_spl, dp_p_spl;
@@ -92,16 +100,45 @@ double emit(double * x, double * xp, unsigned int n){
 
 double emit_fit(double *x, double * xp, unsigned int n)
 {
-
     double x_mean, xp_mean;
     double x_sigma, xp_sigma;
     double x_amplitude,xp_amplitude;
-    int n_bins = 1000;
+    double chisq;
+    int n_bins = 200;
 
     fit *fitter = new fit();
-    fitter->gaus_fit(x,n,&x_amplitude,&x_mean,&x_sigma,n_bins);
-    fitter->gaus_fit(xp,n,&xp_amplitude,&xp_mean,&xp_sigma,n_bins);
+    fitter->gaus_fit(x,n,&x_amplitude,&x_mean,&x_sigma,&chisq, n_bins);
+//    fitter->gaus_fit(xp,n,&xp_amplitude,&xp_mean,&xp_sigma,n_bins);
 
+    std::cout<<"Gaussian: "<<x_amplitude<<" "<<x_mean<<" "<<x_sigma<<" "
+        <<chisq/((double)n_bins - 3.)<<std::endl;
+
+    
+    //Fit a double gaussian and propogate the 
+    double x_mean1, x_mean2, xp_mean1, xp_mean2;
+    double x_sigma1, x_sigma2, xp_sigma1, xp_sigma2; 
+    double x_amp1, x_amp2, xp_amp1, xp_amp2;
+    double chisq1;
+
+    //We've guaranteed that the narrowest peak is 1
+    fitter->double_gaus_fit(x,n, &x_amp1, &x_mean1, &x_sigma1,
+                              &x_amp2, &x_mean2, &x_sigma2, &chisq1, n_bins);
+    fitter->double_gaus_fit(xp,n, &xp_amp1, &xp_mean1, &xp_sigma1,
+                              &xp_amp2, &xp_mean2, &xp_sigma2, &chisq1, n_bins);
+    
+    x_sigma  = x_sigma1;
+    xp_sigma = xp_sigma1;
+    x_mean   = x_mean1;
+    xp_mean  = xp_mean1;
+    
+    std::cout<<"DblGaus: "<<x_amp1<<" "<<x_mean1<<" "<<x_sigma1<<" : "<<x_amp2<<" "
+        <<x_mean2<<" "<<x_sigma2<<" : "<<chisq1/((double)n_bins - 6.)<<std::endl;
+    
+    //Split the emittance calculation into a population that
+    // sees the narrow gaussian and the population 
+    // that sees the wider gaussian
+    
+    
     double dlt2_x = x_sigma * x_sigma * n;
     double dlt2_xp = xp_sigma * xp_sigma * n;
     double dlt_xxp = 0;
@@ -115,7 +152,6 @@ double emit_fit(double *x, double * xp, unsigned int n)
 
     return emit;
 }
-
 
 //Calculate the longitudinal emittance as (dp/p)^2/n
 double emit_p(double * dp_p, unsigned int n){

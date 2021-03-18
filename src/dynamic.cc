@@ -133,7 +133,7 @@ int update_beam(int i, Beam &ion, Ring &ring, Cooler &cooler, EBeam &ebeam, std:
         double ry = r_ibs.at(1) + r_ecool.at(1);
         double rs = r_ibs.at(2) + r_ecool.at(2);
 
-        //Calculate  new emittances
+        //Calculate new emittances
         emit_nx *= exp(rx*dt);
         emit_ny *= exp(ry*dt);
         dp *= dp*exp(rs*dt);
@@ -457,19 +457,20 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     //Store copies of initial conditions for CalculateForce() later
     EcoolRateParas ecool_paras_tmp(*ecool_paras); //Do we need to copy this one?
-    //ForceParas force_paras_tmp(*force_paras); 
+    //ForceParas force_paras_tmp(*force_paras);
     Beam ion_tmp(ion);
     Cooler cooler_tmp(cooler);//Copy constructor not written
     EBeam ebeam_tmp(ebeam);
     //make a copy of ne?
-    
+
 
     //Start tracking
     std::cout<<"Start dynamic simulation ... "<<std::endl;
     dynamic_flag = true;
 
     for(int i=0; i<n_step+1; ++i) {
-        if (ion_save_itvl>0 && i%ion_save_itvl==0 && dynamic_paras->model()!=DynamicModel::RMS)
+      if (ion_save_itvl>0 && i%ion_save_itvl==0 && dynamic_paras->model()!=DynamicModel::RMS)
+        //if (ion_save_itvl>0 && i%ion_save_itvl==0)
             save_ions_sdds(dynamic_paras->n_sample(), "ions"+std::to_string(i)+".txt");
 
         //record
@@ -533,17 +534,15 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     //Now, calculate the force as a function of velocity for plotting.
     // For this we need the initial conditions before the dynamic calculation.
-    
+
    // Skip this calculation if we're in the testing suite
-    if(ecool){// && !dynamic_paras->test() && 
+    if(ecool){// && !dynamic_paras->test() &&
        //       ion.bunched() && ebeam.bunched()){
        CalculateForce(ecool_paras_tmp, *force_paras, ion_tmp, cooler_tmp, ebeam_tmp, ring);
        save_forces_sdds(dynamic_paras->n_sample(), "force_table.txt");
     }
-    
+
     dynamic_flag = false;
     std::cout<<"Finished dynamic simulation."<<std::endl;
     return 0;
 }
-
-

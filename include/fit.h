@@ -29,17 +29,15 @@ public:
   static void callback(const size_t iter, void *params,
                        const gsl_multifit_nlinear_workspace *w);
   void solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
-                    gsl_multifit_nlinear_parameters *params);
-  void gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, double *sigma, int n_bins);
+                    gsl_multifit_nlinear_parameters *params, double *chisq);
+  void gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, double *sigma, double *chisq, int n_bins);
   void double_gaus_fit(double *x, unsigned int n,
                        double *amplitude1, double *mean1, double *sigma1,
                        double *amplitude2, double *mean2, double *sigma2,
-                       int n_bins);
+                       double *chisq, int n_bins);
 
 
     void histogram(const double *x, int n, int n_bins, data *output);
-
-
 
 };
 

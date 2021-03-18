@@ -16,9 +16,9 @@ void test_gaussian_random(){
     double random_num[n];
     double sigma = 1.5;
     double avg = 0.;
-    
+
     gaussian_random(n,random_num,sigma,avg);
-    
+
     std::vector<double> v(random_num, random_num + n);
     double sum = std::accumulate(std::begin(v), std::end(v), 0.0);
     double m =  sum / v.size();
@@ -33,10 +33,10 @@ void test_gaussian_random(){
     std::cout<<std::endl;
     std::cout<<"Require delta mean < 0.01, delta_sigma < 2%"<<std::endl;
     std::cout<<"delta mean = "<<abs(m-avg)<<" delta sigma = "<<abs(stdev-sigma)/stdev<<"%"<<std::endl;
-    
-    JSPEC_ASSERT_THROW( abs(m - avg) < 0.01 );    
+
+    JSPEC_ASSERT_THROW( abs(m - avg) < 0.01 );
     JSPEC_ASSERT_THROW(abs(stdev - sigma)/stdev < 0.02 );
-    
+
     //If the seed isn't really random, a second draw
     // will be exactly the same with the same moments
 
@@ -56,10 +56,10 @@ void test_gaussian_random(){
 
     std::cout<<"Require delta mean != 0, delta sigma != 0"<<std::endl;
     std::cout<<"delta mean = "<<abs(m - m2)<<" delta sigma = "<<abs(stdev - stdev2)<<std::endl;
-    
+
     JSPEC_ASSERT_THROW(m != m2);
     JSPEC_ASSERT_THROW(stdev != stdev2);
-         
+
     JSPEC_TEST_END();
 }
 
@@ -72,17 +72,17 @@ void test_uniform_random(){
     double r_max = 10.;
 
     uniform_random(n, random_num, r_min,r_max);
-    
+
     std::vector<double> v(random_num, random_num + n);
 
     double max = *std::max_element(v.begin(),v.end());
-    double min = *std::min_element(v.begin(),v.end());        
+    double min = *std::min_element(v.begin(),v.end());
 
     std::cout<<std::endl;
     std::cout<<"Require max < r_max, min > r_min"<<std::endl;
     std::cout<<"max = "<<max<<" min = "<<min<<" r_max = "<<r_max<<" r_min = "<<r_min<<std::endl;
-    
-    JSPEC_ASSERT_THROW( max < r_max);    
+
+    JSPEC_ASSERT_THROW( max < r_max);
     JSPEC_ASSERT_THROW( min > r_min);
 
     //If the seed isn't really random, a second draw
@@ -114,10 +114,10 @@ void test_uniform_random(){
 
     std::cout<<"Require delta mean != 0, delta sigma != 0"<<std::endl;
     std::cout<<"delta mean = "<<abs(m - m2)<<" delta sigma = "<<abs(stdev - stdev2)<<std::endl;
-    
+
     JSPEC_ASSERT_THROW(m != m2);
     JSPEC_ASSERT_THROW(stdev != stdev2);
-        
+
     JSPEC_TEST_END();
 }
 
@@ -127,14 +127,14 @@ void test_gaussian_random_adjust(){
     double random_num[n];
     double sigma = 1.5;
     double avg = 0.;
-    
+
     gaussian_random(n,random_num,sigma,avg);
-    
+
     sigma = 3.5;
     avg = 1.0;
-    
+
     gaussian_random_adjust(n,random_num,sigma,avg);
-   
+
     std::vector<double> v(random_num, random_num + n);
     double sum = std::accumulate(std::begin(v), std::end(v), 0.0);
     double m =  sum / v.size();
@@ -145,61 +145,61 @@ void test_gaussian_random_adjust(){
     });
 
     double stdev = sqrt(accum / (v.size()-1.0));
-    
+
     std::cout<<std::endl;
     std::cout<<" Require delta mean < 0.01, delta sigma < 2%"<<std::endl;
     std::cout<<"delta mean = "<<abs(m-avg)<<" delta sigma = "<<abs(stdev-sigma)/stdev<<"%"<<std::endl;
 
-    JSPEC_ASSERT_THROW( abs(m - avg) < 0.01 );    
+    JSPEC_ASSERT_THROW( abs(m - avg) < 0.01 );
     JSPEC_ASSERT_THROW( abs(stdev - sigma)/stdev < 0.02 );
-    
+
     JSPEC_TEST_END();
 }
 
 void test_uniform_random_adjust(){
     JSPEC_TEST_BEGIN( "Uniform Adjust" );
-    
+
     int n = 50000;
     double random_num[n];
     double r_min = -10.;
     double r_max = 10.;
 
     uniform_random(n, random_num, r_min,r_max);
-        
+
     double avg_shift = 2.5;
 
     uniform_random_adjust(n, random_num, avg_shift);
 
     std::vector<double> v(random_num, random_num + n);
-    
+
     double max = *std::max_element(v.begin(),v.end());
-    double min = *std::min_element(v.begin(),v.end());        
+    double min = *std::min_element(v.begin(),v.end());
 
     std::cout<<std::endl;
     std::cout<<"Require min + 2.5 > shifted_min, max + 2.5 < shifted_max"<<std::endl;
     std::cout<<"Min = "<<min<<" Max = "<<max<<std::endl;
     std::cout<<"Shifted min = "<<(r_min + avg_shift)<<" Shifted max = "<<(r_max + avg_shift)<<std::endl;
-    
+
     JSPEC_ASSERT_THROW( max < (r_max + avg_shift) );
     JSPEC_ASSERT_THROW( min > (r_min + avg_shift) );
-    
+
     JSPEC_TEST_END();
 }
 
 void test_rd(){
-    JSPEC_TEST_BEGIN( "Carlson Integral (untested)" );    
-    
+    JSPEC_TEST_BEGIN( "Carlson Integral (untested)" );
+
     //TODO: Choose some values from a real use-case
-    
+
     double test_val = rd(4,5,6);
-        
+
     JSPEC_ASSERT_THROW((test_val>0.0807146) && (test_val < 0.0807148));
-    
+
     // The integral carries some specific constraints
     JSPEC_EXPECT_EXCEPTION(rd(4,5,1e-50),std::invalid_argument);
     JSPEC_EXPECT_EXCEPTION(rd(-4,5,6),std::invalid_argument);
     JSPEC_EXPECT_EXCEPTION(rd(1e-50,1e-50,6),std::invalid_argument);
-    
+
     JSPEC_TEST_END();
 }
 
@@ -211,4 +211,3 @@ int main(int,char**){
     test_uniform_random_adjust(); //Need to fix the main function
     test_rd(); //Undefined, carlson elliptical integral
 }
-

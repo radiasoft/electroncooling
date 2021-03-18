@@ -33,12 +33,12 @@ public:
     int set_n_long(unsigned int n){n_long_=n; n_sample_=n_tr_*n_tr_*n_long_; return 0;}
     int set_bunch_separate(double x){bunch_separate_ = x; return 0;}
     int set_n_long_sample(int x){ n_long_sample_ = x; return 0;}
-    
+
     EcoolRateParas(){};
     EcoolRateParas(int n_sample):ion_sample_(IonSample::MONTE_CARLO),n_sample_(n_sample){};
     EcoolRateParas(int n_tr, int n_long):n_tr_(n_tr),n_long_(n_long){
         if (n_long_<2) n_long_ = 2;
-        //TODO: Why is this n_tr^2 * n_long and not n_tr * n_long? 
+        //TODO: Why is this n_tr^2 * n_long and not n_tr * n_long?
         n_sample_ = n_tr_*n_tr_*n_long_;
     }
     EcoolRateParas(const EcoolRateParas&); //copy constructor
@@ -55,6 +55,7 @@ int ion_sample(EcoolRateParas &ecool_paras, Beam &ion, Ring &ring, Cooler &coole
 int ion_beam_model_MonteCarlo_Gaussian(unsigned int n_sample, Beam &ion, Twiss &twiss);
 double emit(double * x, double * xp, unsigned int n);
 double emit_fit(double *x, double *xp, unsigned int n);
+double emit_fit_dg();
 double emit_p(double * dp_p, unsigned int n);
 double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n);
 int adjust_disp(double dx, double *x_bet, double *dp_p, double *x, unsigned int n);
