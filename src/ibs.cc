@@ -233,7 +233,8 @@ double IBSSolver_Martini::coef_a(const Lattice &lattice, const Beam &beam) const
     return k_c*beam.r()*beam.r()*lambda/(16*k_pi*sqrt(k_pi)*beam.dp_p()*beta3*gamma4)/(beam.emit_x()*beam.emit_y());
 }
 
-void IBSSolver_Martini::rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs)
+//void IBSSolver_Martini::rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs)
+void IBSSolver_Martini::rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r)
 {
     bunch_size(lattice, beam);
     abcdk(lattice, beam);
@@ -245,9 +246,9 @@ void IBSSolver_Martini::rate(const Lattice &lattice, const Beam &beam, double &r
 
     double a = coef_a(lattice, beam);
 
-    rx = 0;
-    ry = 0;
-    rs = 0;
+    double rx = 0;
+    double ry = 0;
+    double rs = 0;
     int n=2;
     if (beam.bunched()) n=1;
     const double circ = lattice.circ();
@@ -293,6 +294,12 @@ void IBSSolver_Martini::rate(const Lattice &lattice, const Beam &beam, double &r
     }
 
     if(k_>0) ibs_coupling(rx, ry, k_, beam.emit_nx(), beam.emit_ny());
+    
+    if(r.size()!=3) r.resize(3);
+    r[0]=rx;
+    r[1]=ry;
+    r[2]=rs;
+    
 }
 
 
@@ -322,9 +329,12 @@ void IBSSolver_BM::init_fixed_var(const Lattice& lattice, const Beam& beam) {
 }
 
 void IBSSolver_BM::calc_kernels(const Lattice& lattice, const Beam& beam) {
-    auto emit_x = beam.emit_x();
-    auto emit_y = beam.emit_y();
-    auto sigma_p2 = beam.dp_p() * beam.dp_p();
+    double emit_x, emit_y, sigma_p2;
+
+    emit_x = beam.emit_x();
+    emit_y = beam.emit_y();
+    sigma_p2 = beam.dp_p() * beam.dp_p();
+
     auto inv_sigma_p2 = 1/sigma_p2;
     auto n = lattice.n_element();
     auto gamma2 = beam.gamma()*beam.gamma();
@@ -377,8 +387,9 @@ void IBSSolver_BM::calc_kernels(const Lattice& lattice, const Beam& beam) {
 
 double IBSSolver_BM::coef_bm(const Lattice &lattice, const Beam &beam) const {
     double lambda = 1;
-    if (beam.bunched())
+    if (beam.bunched()){
         lambda /= 2*sqrt(k_pi)*beam.sigma_s();
+    }
     else
         lambda /= lattice.circ();
 
@@ -387,8 +398,13 @@ double IBSSolver_BM::coef_bm(const Lattice &lattice, const Beam &beam) const {
     return lambda*beam.particle_number()*beam.r()*beam.r()*k_c/(lattice.circ()*6*sqrt(k_pi)*beta3*gamma5);
 }
 
-void IBSSolver_BM::rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs)
+//void IBSSolver_BM::rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs)
+void IBSSolver_BM::rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r)
 {
+    //If outer is true, then we have a bi-gaussian situation and we'll pull a different
+    // set of emittances from the Beam object
+
+    
     int n_element = lattice.n_element();
 
     if (cache_invalid) {
@@ -401,9 +417,9 @@ void IBSSolver_BM::rate(const Lattice &lattice, const Beam &beam, double &rx, do
     const double lc = log_c();
     c_bm *= lc;
 
-    rx = 0;
-    ry = 0;
-    rs = 0;
+    double rx = 0;
+    double ry = 0;
+    double rs = 0;
     int n=2;
     if (beam.bunched()) n=1;
 
@@ -438,10 +454,10 @@ void IBSSolver_BM::rate(const Lattice &lattice, const Beam &beam, double &rx, do
     else {
         for(int i=0; i<n_element-1; ++i){
             double l_element = lattice.l_element(i);
-            rs += kernels.at(i).inv_sigma*kernels.at(i).sp*l_element;
-            ry += lattice.bety(i)*kernels.at(i).inv_sigma*kernels.at(i).psi*l_element;
-            rx += lattice.betx(i)*kernels.at(i).inv_sigma*(kernels.at(i).sx
-                    +optical_strage.at(i).dx_betax_phi_2*kernels.at(i).sp
+            rs += kernels.at(i).inv_sigma * kernels.at(i).sp * l_element;
+            ry += lattice.bety(i) * kernels.at(i).inv_sigma * kernels.at(i).psi * l_element;
+            rx += lattice.betx(i) * kernels.at(i).inv_sigma * 
+                (kernels.at(i).sx + optical_strage.at(i).dx_betax_phi_2 * kernels.at(i).sp
                     +kernels.at(i).sxp)*l_element;
         }
 
@@ -452,9 +468,197 @@ void IBSSolver_BM::rate(const Lattice &lattice, const Beam &beam, double &rx, do
         rs /= beam.dp_p()*beam.dp_p();
         rx /= beam.emit_x();
         ry /= beam.emit_y();
+
     }
 
     if(k_>0)
         ibs_coupling(rx, ry, k_, beam.emit_nx(), beam.emit_ny());
+    
+    if(r.size()!=3) r.resize(3);
+    r[0]=rx;
+    r[1]=ry;
+    r[2]=rs;
+
+    
 }
 
+
+IBSSolver_BiGaus::IBSSolver_BiGaus(double log_c, double k)
+    : IBSSolver(log_c, k)
+{
+#ifndef NDEBUG
+	std::cerr << "DEBUG: IBSSolver_BiGaus constructor" << std::endl;
+#endif
+}
+
+void IBSSolver_BiGaus::init_fixed_var(const Lattice& lattice, const Beam& beam) {
+    int n = lattice.n_element();
+    optical_strage.resize(n);
+
+    for(int i=0; i<n; ++i) {
+        OpticalStorage os;
+        double dx_betax = lattice.dx(i)/lattice.betx(i);
+        os.dx2 = lattice.dx(i) * lattice.dx(i);
+        os.phi = lattice.dpx(i) + lattice.alfx(i)*dx_betax;
+        os.dx_betax_phi_2 = dx_betax*dx_betax + os.phi*os.phi;
+        os.sqrt_betay = sqrt(lattice.bety(i));
+        os.gamma_phi_2 = beam.gamma() * beam.gamma() * os.phi * os.phi;
+        optical_strage.at(i)= os;
+    }
+}
+
+void IBSSolver_BiGaus::calc_kernels(const Lattice& lattice, const Beam& beam, const bool core) {
+    double emit_x, emit_y, sigma_p2;
+
+    if(core){ //Use the core distribution moments
+        emit_x = beam.FRx->emit1_;
+        emit_y = beam.FRy->emit1_;
+        sigma_p2 = beam.FRs->emit1_;   
+    }
+    else{ //Use the tail distribution moments
+        emit_x = beam.FRx->emit2_;
+        emit_y = beam.FRy->emit2_;
+        sigma_p2 = beam.FRs->emit2_;
+    }
+
+    auto inv_sigma_p2 = 1/sigma_p2;
+    auto n = lattice.n_element();
+    auto gamma2 = beam.gamma()*beam.gamma();
+
+    kernels.resize(n);
+
+    for(int i=0; i<n; ++i) {
+        Kernels knl;
+        auto betx = lattice.betx(i);
+        auto bety = lattice.bety(i);
+        auto sigma_x = sqrt(optical_strage.at(i).dx2*sigma_p2+emit_x*betx);
+        auto sigma_y = sqrt(emit_y*bety);
+        knl.inv_sigma = 1/(sigma_x*sigma_y);
+
+        auto ax = betx/emit_x;
+        auto lamda_1 = bety/emit_y; //lamda_1 = ay.
+        auto as = ax*optical_strage.at(i).dx_betax_phi_2 + inv_sigma_p2;
+        auto a1 = gamma2*as;
+        auto a2 = (ax-a1)/2;
+        a1 = (ax+a1)/2;
+
+        auto lamda_2 = sqrt(a2*a2+ax*ax*optical_strage.at(i).gamma_phi_2);
+        auto lamda_3 = a1 - lamda_2;
+        auto tmp1 = 3/lamda_2;
+        lamda_2 = a1 + lamda_2;
+
+        auto inv_lamda_1 = 1/lamda_1;
+        auto inv_lamda_2 = 1/lamda_2;
+        auto inv_lamda_3 = 1/lamda_3;
+
+        auto r1 = rd(inv_lamda_2, inv_lamda_3, inv_lamda_1);
+        auto r2 = rd(inv_lamda_3, inv_lamda_1, inv_lamda_2);
+        auto r3 = 3*sqrt(lamda_1*lamda_2*lamda_3)-r1-r2;
+
+        r1 *= inv_lamda_1*2;
+        r2 *= inv_lamda_2;
+        r3 *= inv_lamda_3;
+
+        knl.psi = -r1 + r2 + r3;
+
+        knl.sxp = tmp1*ax*optical_strage.at(i).gamma_phi_2*(r3-r2);
+        tmp1 = tmp1*a2;
+        auto tmp2 = 1 + tmp1;
+        tmp1 = 1 - tmp1;
+        knl.sp = gamma2*(r1-r2*tmp1-r3*tmp2)/2;
+        knl.sx = (r1-r2*tmp2-r3*tmp1)/2;
+        kernels.at(i) = knl;
+    }
+}
+
+double IBSSolver_BiGaus::coef_bm(const Lattice &lattice, const Beam &beam,const bool core) const {
+    double lambda = 1;
+    if (beam.bunched()){
+        if(core){ //Use the core distribution sigma from the fitter
+             lambda /= 2*sqrt(k_pi)*beam.FRs->sigma1_;   
+        }
+        else{ //Use the tail distribution sigma from the fitter
+            lambda /= 2*sqrt(k_pi)*beam.FRs->sigma2_;
+        }
+    }
+    else{
+        lambda /= lattice.circ();
+    }
+    double beta3 = beam.beta()*beam.beta()*beam.beta();
+    double gamma5 = beam.gamma()*beam.gamma()*beam.gamma()*beam.gamma()*beam.gamma();
+    return lambda*beam.particle_number()*beam.r()*beam.r()*k_c/(lattice.circ()*6*sqrt(k_pi)*beta3*gamma5);
+}
+
+void IBSSolver_BiGaus::rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r)
+{
+    int n_element = lattice.n_element();
+
+    if (cache_invalid) {
+        init_fixed_var(lattice, beam);
+        cache_invalid = false;
+    }
+
+    std::vector<bool> core = {true,false};
+    std::vector<double> rx;
+    std::vector<double> ry;
+    std::vector<double> rs;
+
+    std::cout<<beam.FRx->sigma_<<std::endl;
+  
+    //Pre-calculate the normalized emittances for coupling
+    std::vector<double> emit_nx{beam.FRx->emit1_, beam.FRx->emit2_};
+    std::vector<double> emit_ny{beam.FRy->emit1_, beam.FRy->emit2_};
+    for(int i=0;i<2;i++){
+        emit_nx[i] *= beam.beta() * beam.gamma();
+        emit_ny[i] *= beam.beta() * beam.gamma();
+    }
+    
+  
+    //Do Bjorken-Mtingwa twice, once for the core and once for the tail
+    for(int j=0;j<2;j++){
+        calc_kernels(lattice, beam,core[j]);
+        double c_bm = coef_bm(lattice, beam,core[j]);
+        const double lc = log_c();
+        c_bm *= lc;
+
+        rx.push_back(0.);
+        ry.push_back(0.);
+        rs.push_back(0.);
+        int n=2;
+        if (beam.bunched()) n=1;
+
+        if(ibs_by_element) { //Untested with bigaussian
+            std::cout<<"IBS by element not available with bigaussian model"<<std::endl;
+            return;
+        }
+        else {
+            for(int i=0; i<n_element-1; ++i){
+            double l_element = lattice.l_element(i);
+            rs[j] += kernels.at(i).inv_sigma * kernels.at(i).sp * l_element;
+            ry[j] += lattice.bety(i) * kernels.at(i).inv_sigma * kernels.at(i).psi * l_element;
+            rx[j] += lattice.betx(i) * kernels.at(i).inv_sigma * 
+                (kernels.at(i).sx + optical_strage.at(i).dx_betax_phi_2 * kernels.at(i).sp
+                    +kernels.at(i).sxp)*l_element;
+            }
+
+            rs[j] *= n*c_bm;
+            rx[j] *= c_bm;
+            ry[j] *= c_bm;
+
+            if(k_>0){ //Feed the normalized emittance
+                ibs_coupling(rx[j], ry[j], k_, emit_nx[j], emit_ny[j]);
+            }    
+        }
+    }
+    
+    //
+    
+    //Store the results in the return vector
+    r.push_back(rx[0]); //core       
+    r.push_back(ry[0]);
+    r.push_back(rs[0]);
+    r.push_back(rx[1]); //tail
+    r.push_back(ry[1]);
+    r.push_back(rs[1]);
+    
+}

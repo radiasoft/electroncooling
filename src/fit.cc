@@ -1,24 +1,27 @@
 #include "fit.h"
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include <time.h>
 
 //Use GSL Libraries to fit gaussian distributions and
 // double-gaussians for emittance and IBS calculations
 
-double gaussian(const double a, const double b, const double c, const double t)
+double gaussian(const double a, const double c, const double t)
 {
-  const double z = (t - b) / c;
-  return (a * exp(-0.5 * z * z));
+    //Force the fit mean to be 0.0
+    const double z = (t - 0.0) / c;
+    return (abs(a) * exp(-0.5 * z * z));
 }
 
-double double_gaussian(const double a1, const double b1, const double c1,
-                       const double a2, const double b2, const double c2, const double t)
+double double_gaussian(const double a1,  const double c1,
+                       const double a2, const double c2, const double t)
 {
   //Force the '2' to be the component that's the widest
-  double a_wide,a_narrow,b_wide,b_narrow,c_wide,c_narrow;
+  double a_wide,a_narrow,c_wide,c_narrow;
   a_wide = a2;
-  b_wide = b2;
   c_wide = c2;
   a_narrow = a1;
-  b_narrow = b1;
   c_narrow = c1;
 
   a_wide = abs(a_wide);
@@ -26,8 +29,10 @@ double double_gaussian(const double a1, const double b1, const double c1,
   c_wide = abs(c_wide);
   c_narrow = abs(c_narrow);
 
-  const double z1 = (t - b_narrow) / c_narrow;
-  const double z2 = (t - b_wide) / c_wide;
+//Force the mean to be 0.0
+  const double z1 = (t - 0.0) / c_narrow;
+  const double z2 = (t - 0.0) / c_wide;
+    
   const double g1 = a_narrow * exp(-0.5 * z1 * z1);
   const double g2 = a_wide * exp(-0.5 * z2 * z2);
   return ( g1 + g2 );
@@ -38,15 +43,14 @@ int func_f_gaus (const gsl_vector * x, void *params, gsl_vector * f)
 {
   struct data *d = (struct data *) params;
   double a = gsl_vector_get(x, 0);
-  double b = gsl_vector_get(x, 1);
-  double c = gsl_vector_get(x, 2);
+  double c = gsl_vector_get(x, 1);
   size_t i;
 
   for (i = 0; i < d->n; ++i)
     {
       double ti = d->t[i];
       double yi = d->y[i];
-      double y = gaussian(a, b, c, ti);
+      double y = gaussian(a, c, ti);
 
       gsl_vector_set(f, i, yi - y);
     }
@@ -58,20 +62,17 @@ int func_f_gaus (const gsl_vector * x, void *params, gsl_vector * f)
 int func_f_dbl_gaus (const gsl_vector * x, void *params, gsl_vector * f)
 {
   struct data *d = (struct data *) params;
-  //  double total = gsl_vector_get(x, 0);
   double a1 = gsl_vector_get(x, 0);
-  double b1 = gsl_vector_get(x, 1);
-  double c1 = gsl_vector_get(x, 2);
-  double a2 = gsl_vector_get(x, 3);
-  double b2 = gsl_vector_get(x, 4);
-  double c2 = gsl_vector_get(x, 5);
+  double c1 = gsl_vector_get(x, 1);
+  double a2 = gsl_vector_get(x, 2);
+  double c2 = gsl_vector_get(x, 3);
   size_t i;
 
   for (i = 0; i < d->n; ++i)
     {
       double ti = d->t[i];
       double yi = d->y[i];
-      double y = double_gaussian(a1, b1, c1, a2, b2, c2, ti);
+      double y = double_gaussian(a1, c1, a2, c2, ti);
 
       gsl_vector_set(f, i, yi - y);
     }
@@ -84,19 +85,18 @@ int func_df_gaus (const gsl_vector * x, void *params, gsl_matrix * J)
 {
   struct data *d = (struct data *) params;
   double a = gsl_vector_get(x, 0);
-  double b = gsl_vector_get(x, 1);
-  double c = gsl_vector_get(x, 2);
+  double c = gsl_vector_get(x, 1);
   size_t i;
 
   for (i = 0; i < d->n; ++i)
     {
       double ti = d->t[i];
-      double zi = (ti - b) / c;
+      double zi = (ti - 0.0) / c;
       double ei = exp(-0.5 * zi * zi);
 
       gsl_matrix_set(J, i, 0, -ei);
-      gsl_matrix_set(J, i, 1, -(a / c) * ei * zi);
-      gsl_matrix_set(J, i, 2, -(a / c) * ei * zi * zi);
+      //gsl_matrix_set(J, i, 1, -(a / c) * ei * zi);
+      gsl_matrix_set(J, i, 1, -(a / c) * ei * zi * zi);
     }
 
   return GSL_SUCCESS;
@@ -106,27 +106,25 @@ int func_df_dbl_gaus (const gsl_vector * x, void *params, gsl_matrix * J)
 {
   struct data *d = (struct data *) params;
   double a1 = gsl_vector_get(x, 0);
-  double b1 = gsl_vector_get(x, 1);
-  double c1 = gsl_vector_get(x, 2);
-  double a2 = gsl_vector_get(x, 3);
-  double b2 = gsl_vector_get(x, 4);
-  double c2 = gsl_vector_get(x, 5);
+  double c1 = gsl_vector_get(x, 1);
+  double a2 = gsl_vector_get(x, 2);
+  double c2 = gsl_vector_get(x, 3);
   size_t i;
 
   for (i = 0; i < d->n; ++i)
     {
       double ti   = d->t[i];
-      double zi1  = (ti - b1) / c1;
-      double zi2  = (ti - b2) / c2;
+      double zi1  = (ti - 0.0) / c1;
+      double zi2  = (ti - 0.0) / c2;
       double ei1  = exp(-0.5 * zi1 * zi1);
       double ei2  = exp(-0.5 * zi2 * zi2);
 
       gsl_matrix_set(J, i, 0, -ei1);
-      gsl_matrix_set(J, i, 1, -(a1 / c1) * ei1 * zi1);
-      gsl_matrix_set(J, i, 2, -(a1 / c1) * ei1 * zi1 * zi1);
-      gsl_matrix_set(J, i, 3, -ei2);
-      gsl_matrix_set(J, i, 4, -(a2 / c2) * ei2 * zi2);
-      gsl_matrix_set(J, i, 5, -(a2 / c2) * ei2 * zi2 * zi2);
+ //     gsl_matrix_set(J, i, 1, -(a1 / c1) * ei1 * zi1);
+      gsl_matrix_set(J, i, 1, -(a1 / c1) * ei1 * zi1 * zi1);
+      gsl_matrix_set(J, i, 2, -ei2);
+   ///   gsl_matrix_set(J, i, 4, -(a2 / c2) * ei2 * zi2);
+      gsl_matrix_set(J, i, 3, -(a2 / c2) * ei2 * zi2 * zi2);
     }
 
   return GSL_SUCCESS;
@@ -137,17 +135,15 @@ int func_fvv_gaus (const gsl_vector * x, const gsl_vector * v,
 {
   struct data *d = (struct data *) params;
   double a = gsl_vector_get(x, 0);
-  double b = gsl_vector_get(x, 1);
-  double c = gsl_vector_get(x, 2);
+  double c = gsl_vector_get(x, 1);
   double va = gsl_vector_get(v, 0);
-  double vb = gsl_vector_get(v, 1);
-  double vc = gsl_vector_get(v, 2);
+  double vc = gsl_vector_get(v, 1);
   size_t i;
 
   for (i = 0; i < d->n; ++i)
     {
       double ti = d->t[i];
-      double zi = (ti - b) / c;
+      double zi = (ti - 0.0) / c;
       double ei = exp(-0.5 * zi * zi);
       double Dab = -zi * ei / c;
       double Dac = -zi * zi * ei / c;
@@ -156,10 +152,10 @@ int func_fvv_gaus (const gsl_vector * x, const gsl_vector * v,
       double Dcc = a * zi * zi * ei / (c * c) * (3.0 - zi*zi);
       double sum;
 
-      sum = 2.0 * va * vb * Dab +
+      sum = //2.0 * va * vb * Dab +
             2.0 * va * vc * Dac +
-                  vb * vb * Dbb +
-            2.0 * vb * vc * Dbc +
+            //      vb * vb * Dbb +
+            //2.0 * vb * vc * Dbc +
                   vc * vc * Dcc;
 
       gsl_vector_set(fvv, i, sum);
@@ -173,17 +169,15 @@ int func_fvv_gaus (const gsl_vector * x, const gsl_vector * v,
 {
   struct data *d = (struct data *) params;
   double a = gsl_vector_get(x, 0);
-  double b = gsl_vector_get(x, 1);
-  double c = gsl_vector_get(x, 2);
+  double c = gsl_vector_get(x, 1);
   double va = gsl_vector_get(v, 0);
-  double vb = gsl_vector_get(v, 1);
-  double vc = gsl_vector_get(v, 2);
+  double vc = gsl_vector_get(v, 1);
   size_t i;
 
   for (i = 0; i < d->n; ++i)
     {
       double ti = d->t[i];
-      double zi = (ti - b) / c;
+      double zi = (ti - 0.0) / c;
       double ei = exp(-0.5 * zi * zi);
       double Dab = -zi * ei / c;
       double Dac = -zi * zi * ei / c;
@@ -192,10 +186,10 @@ int func_fvv_gaus (const gsl_vector * x, const gsl_vector * v,
       double Dcc = a * zi * zi * ei / (c * c) * (3.0 - zi*zi);
       double sum;
 
-      sum = 2.0 * va * vb * Dab +
+      sum = //2.0 * va * vb * Dab +
             2.0 * va * vc * Dac +
-                  vb * vb * Dbb +
-            2.0 * vb * vc * Dbc +
+            //      vb * vb * Dbb +
+            //2.0 * vb * vc * Dbc +
                   vc * vc * Dcc;
 
       gsl_vector_set(fvv, i, sum);
@@ -224,7 +218,7 @@ void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
              gsl_multifit_nlinear_parameters *params, double *chisq)
 {
   const gsl_multifit_nlinear_type *T = gsl_multifit_nlinear_trust;
-  const size_t max_iter = 5000;
+  const size_t max_iter = 100000;
   const double xtol = 1.0e-8;
   const double gtol = 1.0e-8;
   const double ftol = 1.0e-8;
@@ -249,7 +243,7 @@ void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 
   /* store final cost */
   gsl_blas_ddot(f, f, chisq);
-  //std::cout<<"chisq = "<<*chisq<<" "<<chisq0<<std::endl;
+
   /* store cond(J(x)) */
   gsl_multifit_nlinear_rcond(&rcond, work);
 
@@ -261,10 +255,7 @@ void fit::solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 
 void fit::histogram(const double *x, int n, int n_bins, struct data *output){
 
-//Construct a histogram from the data
-
-//TODO: To remove outliers, could sort by value, remove top 5% and bottom 5%
-  // prior to range finding and histogram filling
+//Construct a (normalized) histogram from the macroparticle data
 
   gsl_histogram * h = gsl_histogram_alloc (n_bins);
   std::vector<double> vec(x,x+n);
@@ -285,13 +276,13 @@ void fit::histogram(const double *x, int n, int n_bins, struct data *output){
       double lower, upper;
       gsl_histogram_get_range(h, i, &lower, &upper);
       output->t[i] = 0.5*((lower + upper));
-      output->y[i] = gsl_histogram_get(h, i);
+      output->y[i] = gsl_histogram_get(h, i) / (double)n;
   }
 }
 
 void fit::gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, double *sigma, double *chisq, int n_bins=200){
 
-  const size_t p = 3;    /* number of model parameters */
+  const size_t p = 2;    /* number of model parameters */
 
   gsl_vector *xv = gsl_vector_alloc(p); //Stores fit parameters
   gsl_multifit_nlinear_fdf fdf;
@@ -325,44 +316,55 @@ void fit::gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, d
 
   /* starting point */
   gsl_vector_set(xv, 0, initial_amplitude);
-  gsl_vector_set(xv, 1, initial_mean);
-  gsl_vector_set(xv, 2, initial_sigma);
+  gsl_vector_set(xv, 1, initial_sigma);
 
   //Use gedesic acceleration?
-  //fdf_params.trs = gsl_multifit_nlinear_trs_lm; //slower levinburg-marquardt
-  fdf_params.trs = gsl_multifit_nlinear_trs_lmaccel; // with acceleration from 2nd derivative
+  fdf_params.trs = gsl_multifit_nlinear_trs_lm; //slower levinburg-marquardt
+  //fdf_params.trs = gsl_multifit_nlinear_trs_lmaccel; // with acceleration from 2nd derivative
 
   solve_system(xv, &fdf, &fdf_params, chisq);
 
   //TODO: Calculate chisquared and return FOM?
-
+  
 
   //TODO: Catch NaN's?
 
   //Set the outputs
   *amplitude = gsl_vector_get(xv, 0);
-  *mean      = gsl_vector_get(xv, 1);
-  *sigma     = gsl_vector_get(xv, 2);
+  *mean      = 0.0; //Fixed at 0
+  *sigma     = gsl_vector_get(xv, 1);
 
-  //  std::cout<<"Amplitude: "<<gsl_vector_get(xv, 0)<<" mean "<<gsl_vector_get(xv, 1)<<" sigma "<<gsl_vector_get(xv, 2)<<std::endl;
+  std::cout<<"Amplitude: "<<gsl_vector_get(xv, 0)<<" sigma "<<gsl_vector_get(xv, 1)<<std::endl;
 
   gsl_vector_free(xv);
 }
 
- void fit::double_gaus_fit(double *x, unsigned int n, double *amplitude1, double *mean1, double *sigma1,double *amplitude2, double *mean2, double *sigma2, double *chisq, int n_bins=200){
+ void fit::double_gaus_fit(double *x, unsigned int n, double *amplitude1, double *mean1, double *sigma1,double *amplitude2, double *mean2, double *sigma2, double *chisq, int n_bins=200,bool print){
 
-  const size_t p = 6;    /* number of model parameters */
+  const size_t p = 4;    /* number of model parameters */
 
   gsl_vector *xv = gsl_vector_alloc(p);
   gsl_multifit_nlinear_fdf fdf;
   gsl_multifit_nlinear_parameters fdf_params = gsl_multifit_nlinear_default_parameters();
 
+  if(print){
+      //Output the raw data and the histogram data to separate files for QC.
+      remove("Raw_distribution.txt"); //Remove a file from an earlier write
+      std::ofstream myfile;
+      myfile.open ("Raw_distribution.txt");
+
+      for(int i=0;i<n;i++){
+          myfile<<x[i]<<"\n";
+      }
+      myfile.close();
+  }
+     
   //Histogram the distribution
   struct data fit_data;
-
+     
   histogram(x,n,n_bins,&fit_data);
 
-  //Get the moments from the histogram, to set up the fitter's initial position
+  //Get the gaussian moments from the histogram, to set up the fitter's initial position
   double initial_amplitude;
   double initial_mean;
   double initial_sigma;
@@ -376,54 +378,71 @@ void fit::gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, d
   double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
   initial_sigma = std::sqrt(sq_sum / v.size());
 
-  //  std::cout<<initial_amplitude<<" "<<initial_mean<<" "<<initial_sigma<<std::endl;
-
   fdf.f   =  &func_f_dbl_gaus;
   fdf.df  =  &func_df_dbl_gaus;
-  //fdf.fvv =  &func_fvv_dbl_gaus;
   fdf.n   =  n_bins;
   fdf.p   =  p;
   fdf.params = &fit_data;
 
   /* starting point */
-  gsl_vector_set(xv, 0, 2000.0); //Amplitude1
-  gsl_vector_set(xv, 1, 0.0);    //Center1
-  gsl_vector_set(xv, 2, 0.01);   //Width1
+  gsl_vector_set(xv, 0, initial_amplitude); //Amplitude1
+  gsl_vector_set(xv, 1, initial_sigma/2);   //Width1
 
   //Curve 2 is defined as having the wider distribution
-  gsl_vector_set(xv, 3, 2000.0); //Amplitude2
-  gsl_vector_set(xv, 4, 0.0);    //Center2
-  gsl_vector_set(xv, 5, 0.5);   //Width2
+  gsl_vector_set(xv, 2, initial_amplitude); //Amplitude2
+  gsl_vector_set(xv, 3, initial_sigma*2);   //Width2
 
   //Use Geodesic Acceleration?
   // If not, we don't have to deal with the 2nd derivative
   fdf_params.trs = gsl_multifit_nlinear_trs_lm;  //Slower, no acceleration
-  //fdf_params.trs = gsl_multifit_nlinear_trs_lmaccel;
 
   solve_system(xv, &fdf, &fdf_params, chisq);
 
   double interim_amp1   = gsl_vector_get(xv, 0);
-  double interim_mean1  = gsl_vector_get(xv, 1);
-  double interim_sigma1 = gsl_vector_get(xv, 2);
-  double interim_amp2   = gsl_vector_get(xv, 3);
-  double interim_mean2  = gsl_vector_get(xv, 4);
-  double interim_sigma2 = gsl_vector_get(xv, 5);
+  double interim_sigma1 = gsl_vector_get(xv, 1);
+  double interim_amp2   = gsl_vector_get(xv, 2);
+  double interim_sigma2 = gsl_vector_get(xv, 3);
+
+  if(print){
+      //Write the histogram data out, with the top line storing the fit parameters
+      //remove("histogram.txt"); //Remove a file from an earlier write
+      std::ofstream myfile;
+      //myfile.open ("histogram.txt");
+      time_t rawtime;
+      struct tm * timeinfo;
+      char buffer [80];
+
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (buffer,80,"histogram_%I%M%S.txt",timeinfo);
+      myfile.open(buffer);
+     //Write all fit parameters out in the first line
+      for (int i=0;i<p-1;i++){
+          myfile << abs(gsl_vector_get(xv,i))<< ", "; 
+      }  
+      myfile<< abs(gsl_vector_get(xv,3))<<"\n";
+     
+      for(int i=0;i<fit_data.n;i++){
+          myfile << fit_data.t[i] << ", " << fit_data.y[i] << "\n";
+      }
+      myfile.close();
+  }
      
   //Set the outputs, make sure the narrow peak comes out first
   if(abs(interim_sigma1) < abs(interim_sigma2)){
     *amplitude1 = abs(interim_amp1);
-    *mean1      = interim_mean1;
+    *mean1      = 0.0;
     *sigma1     = abs(interim_sigma1);
     *amplitude2 = abs(interim_amp2);
-    *mean2      = interim_mean2;
+    *mean2      = 0.0;
     *sigma2     = abs(interim_sigma2);
   }
   else{
     *amplitude1 = abs(interim_amp2);
-    *mean1      = interim_mean2;
+    *mean1      = 0.0;
     *sigma1     = abs(interim_sigma2);
     *amplitude2 = abs(interim_amp1);
-    *mean2      = interim_mean1;
+    *mean2      = 0.0;
     *sigma2     = abs(interim_sigma1);      
   }
      

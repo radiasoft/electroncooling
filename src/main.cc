@@ -488,13 +488,15 @@ int main(int argc, char** argv) {
 //                std::cout<<"IBS 3D integral: "<<t1<<std::endl;
 //
 //                std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
-
-                ibs_solver->rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
-                std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
-
+                std::vector<double> r_ibs = {rx_ibs,ry_ibs,rz_ibs};
+                ibs_solver->rate(lattice, p_beam, r_ibs);
+//                std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
+                std::cout<<r_ibs[0]<<' '<<r_ibs[1]<<' '<<r_ibs[2]<<std::endl;
+                
                 ibs_solver->set_k(0.2);
-                ibs_solver->rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
-                std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
+                ibs_solver->rate(lattice, p_beam, r_ibs);
+                std::cout<<r_ibs[0]<<' '<<r_ibs[1]<<' '<<r_ibs[2]<<std::endl;
+               // std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
                 break;
             }
             case Test::DYNAMICIBSBUNCHED: {
@@ -743,10 +745,14 @@ int main(int argc, char** argv) {
                 ibs_solver = new IBSSolver_Martini(nu, nv, nz, log_c, 0.4);
 
                 double rx_ibs, ry_ibs, rz_ibs;
-                ibs_solver->rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
-                std::cout<<"IBS rate: [1/s] "<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
-                std::cout<<"Total rate: [1/s] "<<rx_ibs+rate_x<<' '<<ry_ibs+rate_y<<' '<<rz_ibs+rate_s<<std::endl<<std::endl;
+                std::vector<double> r;
+                ibs_solver->rate(lattice, p_beam, r);
+//                std::cout<<"IBS rate: [1/s] "<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
+//                std::cout<<"Total rate: [1/s] "<<rx_ibs+rate_x<<' '<<ry_ibs+rate_y<<' '<<rz_ibs+rate_s<<std::endl<<std::endl;
+                std::cout<<"IBS rate: [1/s] "<<r[0]<<' '<<r[1]<<' '<<r[2]<<std::endl;
+                std::cout<<"Total rate: [1/s] "<<r[0]+rate_x<<' '<<r[1]+rate_y<<' '<<r[2]+rate_s<<std::endl<<std::endl;
 
+                
 //                return 0;
 
                 //define dynamic simulation

@@ -10,6 +10,8 @@
 #include "constants.h"
 #include "ibs.h"
 #include "force.h"
+#include "particle_model.h"
+#include "dynamic.h"
 
 using std::string;
 
@@ -547,14 +549,19 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
         delete ibs_solver;
         ibs_solver = new IBSSolver_Martini(nu, nv, nz, log_c, k);
         ibs_solver->set_ibs_by_element(ibs_by_element);
-    } else if (model == IBSModel::BM) {
+    } else if (model == IBSModel::BM || model == IBSModel::BIGAUS) { //See below
         assert(log_c>0 && "WRONG VALUE FOR COULOMB LOGARITHM IN IBS CALCULATION WITH BM MODEL!");
         delete ibs_solver;
         ibs_solver = new IBSSolver_BM(log_c, k);
         ibs_solver->set_ibs_by_element(ibs_by_element);
-    }
+    } 
+
+    //If the model is BiGaus, then the initial rate should be calculated
+    // directly with the BM model (because the bi-gaussian distribution
+    // hasn't had a chance to emerge). This also solves the need to 
+    // call the fitter. 
     if(calc) {
-        ibs_solver->rate(*ptrs.ring->lattice_, *ptrs.ion_beam, rx, ry, rz);
+        ibs_solver->rate(*ptrs.ring->lattice_, *ptrs.ion_beam, ptrs.ibs_rate);
 
         ptrs.ibs_rate.at(0) = rx;
         ptrs.ibs_rate.at(1) = ry;
@@ -566,6 +573,15 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
         std::cout << std::setprecision(3);
         std::cout<<"IBS rate (1/s): "<<rx<<"  "<<ry<<"  "<<rz<<std::endl;
     }
+    
+    //Once the initial rate has been calculated, then initialize the bigaussian model
+    if (model == IBSModel::BIGAUS) {
+        assert(log_c>0 && "WRONG VALUE FOR COULOMB LOGARITHM IN IBS CALCULATION WITH BM MODEL! (log_c>0)");
+        delete ibs_solver;
+        ibs_solver = new IBSSolver_BiGaus(log_c,k);
+        ibs_solver->set_ibs_by_element(ibs_by_element);
+    }
+    
 }
 
 
@@ -1286,6 +1302,9 @@ void set_ibs(string &str, Set_ibs *ibs_args) {
     if (var== "MODEL") {
         if (val == "MARTINI") {
             ibs_args->model = IBSModel::MARTINI;
+        }
+        else if (val == "BIGAUS") {
+            ibs_args->model = IBSModel::BIGAUS;
         }
         else if(val == "BM") {
             ibs_args->model = IBSModel::BM;

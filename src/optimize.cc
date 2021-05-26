@@ -168,7 +168,11 @@ double Optimize::fit_fcn(const gsl_vector *v, void *params){
 
     //Calculate the delta rate from IBS
     double rx_ibs, ry_ibs, rz_ibs;
-    ibs_solver->rate(lattice, *(p->beam), rx_ibs, ry_ibs, rz_ibs);
+    std::vector<double> r;
+    ibs_solver->rate(lattice, *(p->beam), r);
+    rx_ibs = r[0];
+    ry_ibs = r[1];
+    rz_ibs = r[2];
     //std::cout<<"IBS:" << rx_ibs<<" "<<ry_ibs<<" "<<rz_ibs<<std::endl;
 
     //Calculate the delta rate from cooling
@@ -313,7 +317,11 @@ std::map<int, vector<double> >Optimize::ParameterScan(string scan_par, double pa
         double rx_ibs, ry_ibs, rz_ibs = 0.0;
         if(do_ibs_){
             //Calculate the delta rate from IBS
-            ibs_solver->rate(lattice, *(params.beam), rx_ibs, ry_ibs, rz_ibs);
+            std::vector<double> r;
+            ibs_solver->rate(lattice, *(params.beam), r);
+            rx_ibs = r[0];
+            ry_ibs = r[1];
+            rz_ibs = r[2];
             //std::cout<<"IBS:" << rx_ibs<<" "<<ry_ibs<<" "<<rz_ibs<<std::endl;
         }
 

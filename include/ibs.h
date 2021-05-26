@@ -12,7 +12,7 @@
 class Lattice;
 class Beam;
 
-enum class IBSModel {MARTINI, BM};
+enum class IBSModel {MARTINI, BM, BIGAUS};
 
 class IBSSolver {
 protected:
@@ -21,6 +21,8 @@ protected:
     bool cache_invalid = true;
     bool ibs_by_element = false; //Calculate and output the ibs rate contribution element by element.
 
+    IBSModel this_model_ = IBSModel::BM;
+    
     void ibs_coupling(double &rx, double &ry, double k, double emit_x, double emit_y);
 public:
     double log_c() const { return log_c_; }
@@ -30,9 +32,12 @@ public:
     void set_ibs_by_element(bool b) {ibs_by_element = b;}
     void invalidate_cache() { cache_invalid = true; }
 
+    virtual IBSModel const GetIBSModel(){return this_model_;}
+    
     IBSSolver(double log_c, double k);
 
-    virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs) = 0;
+//    virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs) = 0;
+    virtual void rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r) = 0;
 };
 
 class IBSSolver_Martini : public IBSSolver {
@@ -76,6 +81,8 @@ private:
     std::vector<OpticalStorage> storage_opt;
     std::vector<double> f1, f2, f3;
 
+    IBSModel this_model_ = IBSModel::MARTINI;
+    
     void bunch_size(const Lattice &lattice, const Beam &beam);
     void abcdk(const Lattice &lattice, const Beam &beam);
     void coef_f();
@@ -89,7 +96,9 @@ public:
     void set_nv(int nv) { assert(nv>0&&"Wrong value of nv in IBS parameters!"); nv_ = nv; invalidate_cache(); }
     void set_nz(int nz) { assert(nz>0&&"Wrong value of nz in IBS parameters!"); nz_ = nz; invalidate_cache(); }
     IBSSolver_Martini(int nu, int nv, int nz, double log_c, double k);
-    virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs);
+    virtual IBSModel const GetIBSModel(){return this_model_;}
+//    virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs);
+    virtual void rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r);
 };
 
 class IBSSolver_BM : public IBSSolver {
@@ -115,10 +124,55 @@ class IBSSolver_BM : public IBSSolver {
      void init_fixed_var(const Lattice &lattice, const Beam &beam);
      void calc_kernels(const Lattice &lattice, const Beam &beam);
      double coef_bm(const Lattice &lattice, const Beam &beam) const;
- public:
-     IBSSolver_BM(double log_c, double k);
-     virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs);
+    
+    IBSModel this_model_ = IBSModel::BM;
 
+    public:
+     IBSSolver_BM(double log_c, double k);
+//     virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs);
+     virtual void rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r);
+
+     virtual IBSModel const GetIBSModel(){return this_model_;}
+};
+
+
+class IBSSolver_BiGaus : public IBSSolver {
+ private:
+     struct OpticalStorage { //variables only depends on the TWISS parameters and the energy.
+         double phi;
+         double dx2; //D_x * D_x
+         double dx_betax_phi_2; // D_x * D_x / (beta_x * beta_x) + phi * phi
+         double sqrt_betay; // sqrt(beta_y)
+         double gamma_phi_2; // gamma * gamma * phi * phi
+     };
+     struct Kernels {
+         double  psi;
+         double sx;
+         double sp;
+         double sxp;
+         double inv_sigma;
+     };
+
+     // Scratch variables for IBS calculation (Bjorken-Mtingwa model using Sergei Nagitsev's formula)
+     std::vector<OpticalStorage> optical_strage;
+     std::vector<Kernels> kernels;
+     void init_fixed_var(const Lattice &lattice, const Beam &beam);
+     void calc_kernels(const Lattice &lattice, const Beam &beam, const bool core);
+     double coef_bm(const Lattice &lattice, const Beam &beam, const bool core) const;
+
+    
+    //Some options
+    bool FWHM_ = false;
+    
+    IBSModel this_model_ = IBSModel::BIGAUS;
+
+    
+ public:
+    IBSSolver_BiGaus(double log_c, double k);
+    int SetFWHM(bool b=true){FWHM_ = b; return 1;}
+//    virtual void rate(const Lattice &lattice, const Beam &beam, double &rx, double &ry, double &rs);
+    virtual void rate(const Lattice &lattice, const Beam &beam, std::vector<double> &r);
+    virtual IBSModel const GetIBSModel(){return this_model_;}
 };
 
 #endif

@@ -5,6 +5,7 @@
 #include "cooler.h"
 #include "force.h"
 #include "ring.h"
+#include "fit.h"
 
 enum class IonSample {SINGLE_PARTICLE, MONTE_CARLO};
 //enum class ECoolScenario {DC_COAST, DC_BUNCH, BUNCH_COAST, BUNCH_BUNCH};
@@ -54,9 +55,10 @@ int config_ecooling(EcoolRateParas &ecool_paras, Beam &ion);
 int ion_sample(EcoolRateParas &ecool_paras, Beam &ion, Ring &ring, Cooler &cooler);
 int ion_beam_model_MonteCarlo_Gaussian(unsigned int n_sample, Beam &ion, Twiss &twiss);
 double emit(double * x, double * xp, unsigned int n);
-double emit_fit(double *x, double *xp, unsigned int n);
-double emit_fit_dg();
+double emit_fit(double *x, double *xp, unsigned int n, fit_results &FR,bool print=false);
 double emit_p(double * dp_p, unsigned int n);
+double emit_p_fit(double * dp_p, unsigned int n, fit_results &FR, bool print=false);
 double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n);
+double emit_p_fit(double * dp_p, double * ds, Ring &ring, unsigned int n,fit_results &FRp, fit_results &FRs, bool print=false);
 int adjust_disp(double dx, double *x_bet, double *dp_p, double *x, unsigned int n);
 #endif // ECOOLING_H
