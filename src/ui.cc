@@ -55,7 +55,7 @@ std::vector<string> E_BEAM_ARGS = {"GAMMA", "TMP_TR", "TMP_L", "SHAPE", "RADIUS"
     "SIGMA_Z", "LENGTH", "E_NUMBER", "RH", "RV", "R_INNER", "R_OUTTER", "PARTICLE_FILE", "TOTAL_PARTICLE_NUMBER",
     "BOX_PARTICLE_NUMBER", "LINE_SKIP", "VEL_POS_CORR","BINARY_FILE","BUFFER_SIZE"};
 std::vector<string> ECOOL_ARGS = {"SAMPLE_NUMBER", "FORCE_FORMULA"};
-std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","UNMAGNETIZED","BUDKER"};
+std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","UNMAGNETIZED","BUDKER","POGORELOV"};
 std::vector<string> SIMULATION_ARGS = {"TIME", "STEP_NUMBER", "SAMPLE_NUMBER", "IBS", "E_COOL", "OUTPUT_INTERVAL",
     "SAVE_PARTICLE_INTERVAL", "OUTPUT_FILE", "MODEL", "REF_BET_X", "REF_BET_Y", "REF_ALF_X", "REF_ALF_Y",
     "REF_DISP_X", "REF_DISP_Y", "REF_DISP_DX", "REF_DISP_DY", "FIXED_BUNCH_LENGTH", "RESET_TIME", "OVERWRITE",
@@ -554,12 +554,12 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
         delete ibs_solver;
         ibs_solver = new IBSSolver_BM(log_c, k);
         ibs_solver->set_ibs_by_element(ibs_by_element);
-    } 
+    }
 
     //If the model is BiGaus, then the initial rate should be calculated
     // directly with the BM model (because the bi-gaussian distribution
-    // hasn't had a chance to emerge). This also solves the need to 
-    // call the fitter. 
+    // hasn't had a chance to emerge). This also solves the need to
+    // call the fitter.
     if(calc) {
         ibs_solver->rate(*ptrs.ring->lattice_, *ptrs.ion_beam, ptrs.ibs_rate);
 
@@ -573,7 +573,7 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
         std::cout << std::setprecision(3);
         std::cout<<"IBS rate (1/s): "<<rx<<"  "<<ry<<"  "<<rz<<std::endl;
     }
-    
+
     //Once the initial rate has been calculated, then initialize the bigaussian model
     if (model == IBSModel::BIGAUS) {
         assert(log_c>0 && "WRONG VALUE FOR COULOMB LOGARITHM IN IBS CALCULATION WITH BM MODEL! (log_c>0)");
@@ -581,7 +581,7 @@ void calculate_ibs(Set_ptrs &ptrs, bool calc = true) {
         ibs_solver = new IBSSolver_BiGaus(log_c,k);
         ibs_solver->set_ibs_by_element(ibs_by_element);
     }
-    
+
 }
 
 
@@ -915,6 +915,7 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
         opt_args->mod_names.push_back("bfield");
         opt_args->initial_values.push_back(std::stod(val));
     }
+
     else if (var=="LOG_C") {
         opt_args->mod_names.push_back("log_c");
         opt_args->initial_values.push_back(std::stod(val));
@@ -997,6 +998,7 @@ void optimize_cooling(Set_ptrs &ptrs) {
     else dynamic_paras->set_overwrite(false);
     if (ptrs.dynamic_ptr->calc_luminosity) dynamic_paras->set_calc_lum(true);
     else dynamic_paras->set_calc_lum(false);
+
     if(dynamic_paras->model()==DynamicModel::PARTICLE && !ecool)
         assert(n_sample>0 && "SET N_SAMPLE FOR SIMULATION!");
 
@@ -1659,6 +1661,7 @@ void set_ecool(string &str, Set_ecool *ecool_args){
         else if (val=="MESHKOV") ecool_args->force = ForceFormula::MESHKOV;
         else if (val=="UNMAGNETIZED") ecool_args->force = ForceFormula::UNMAGNETIZED;
         else if (val=="BUDKER") ecool_args->force = ForceFormula::BUDKER;
+        else if (val=="POGORELOV") ecool_args->force = ForceFormula::POGORELOV;
 
         else assert(false&&"Friction force formula NOT exists!");
     }

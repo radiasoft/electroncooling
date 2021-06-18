@@ -723,6 +723,57 @@ void Force_Budker::force(double v_tr, double v_long, double d_perp_e, double d_p
     }
 }
 
+//This uses the longitudinal force construction from Pogorelov, and the transverse force from Parkhomchuk
+void Force_Pogorelov::force(double v_tr, double v_long, double d_perp_e, double d_paral_e, double temperature,
+                              int charge_number, double density_e, double time_cooler, double magnetic_field,
+                              double &force_result_trans, double &force_result_long){
+
+  //First, calculate the transverse force a la Parkhomchuk:
+    double v2 = v_tr*v_tr + v_long*v_long;
+    double force = 0.0;
+
+    if(v2>0){
+        //In SI units, this is m*v_tr /(qB). In CGS units, there's an extra k_c in the numerator.
+        double rho_lamor = k_me_kg * d_perp_e / ( magnetic_field * k_e ); //in units of m
+        double v2_eff_e = temperature * k_c*k_c / (k_me*1e6);
+
+        //Use the effective delta v specific to the Parkhomchuk model
+        double dlt2_eff_e = d_paral_e*d_paral_e + v2_eff_e;
+        double dlt = v2 + dlt2_eff_e;
+
+        //double rho_min_const = charge_number * k_e * k_ke * k_c*k_c / (k_me*1e6);
+        double rho_min_const = charge_number * k_re * k_c*k_c; //SI, in units of m
+        double rho_min = rho_min_const/dlt;
+        dlt = sqrt(dlt);
+
+        double rho_max = max_impact_factor(dlt,charge_number,density_e,time_cooler); //dlt already sqrt
+
+        double lc = log( ( rho_max + rho_min + rho_lamor ) / ( rho_min + rho_lamor ) );   //Coulomb Logarithm =~6
+
+        //Calculate friction force
+        force = f_const_ * charge_number*charge_number * density_e * lc / ( dlt*dlt*dlt );
+    }
+
+    //This factor of the force must be multiplied by either v_tr or v_long to truly be
+    // equal to the force in newtons
+    force_result_trans = force * v_tr;
+
+
+    //Now the Pogorelov formulation
+
+    double A = 2.0 * k_pi * (float)charge_number*charge_number * density_e * k_me_kg * k_re*k_re * k_c*k_c*k_c*k_c;
+    double argument = (k_pi * charge_number * k_re * k_c*k_c) / (k_me * d_paral_e*d_paral_e); //Subbing m*delta^2 for temperature
+    double sigma = pow( argument , 1.0/3.0);
+
+//    std::cout<<"Z = "<<charge_number<<" n_e = "<<density_e<<" temperature ="<<k_me * d_paral_e*d_paral_e<<std::endl;
+//    std::cout<<"A = "<<A<<" argment = "<<argument<<" sigma = "<<sigma<<std::endl;
+
+
+    argument = sigma*sigma + v_long*v_long;
+    force_result_long = - (A * v_long) / (pow( argument , 3.0/2.0));
+//    std::cout<<"force_result_long = "<<force_result_long<<std::endl;
+
+}
 
 int friction_force(int charge_number, unsigned long int ion_number, double *v_tr, double *v_long, double *density_e,
                    ForceParas &force_paras, double *force_tr, double *force_long){
@@ -773,6 +824,10 @@ ForceParas* ChooseForce(ForceFormula force_formula){
 
         case(ForceFormula::BUDKER):
             force_paras = new Force_Budker();
+            break;
+
+        case(ForceFormula::POGORELOV):
+            force_paras = new Force_Pogorelov();
             break;
 
     }
