@@ -264,7 +264,7 @@ void update_beam_parameters(Beam &ion, Ring &ring) {
     //double emitfit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample);
 
     fit_results *FRx = new fit_results();
-    double emit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample, *FRx,true);
+    double emit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample, *FRx,false);
 
     //double emit_y = emit(y_bet.get(), yp_bet.get(), n_sample);
     fit_results *FRy = new fit_results();

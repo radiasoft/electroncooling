@@ -3,9 +3,11 @@
 #include <fstream>
 #include <stdio.h>
 #include <time.h>
+#include <chrono>
 
 //Use GSL Libraries to fit gaussian distributions and
 // double-gaussians for emittance and IBS calculations
+
 
 double gaussian(const double a, const double c, const double t)
 {
@@ -426,6 +428,43 @@ void fit::gaus_fit(double *x, unsigned int n, double *amplitude, double *mean, d
           myfile << fit_data.t[i] << ", " << fit_data.y[i] << "\n";
       }
       myfile.close();
+      
+      
+      //Also, write out the list of macroparticles that are in 
+      // the central core, so we can track them over time
+      std::ofstream myfile2;
+//      strftime (buffer,80,"core_%I%M%S.txt",timeinfo);
+      //Construct number of milliseconds since now was called for filename
+      typedef std::chrono::system_clock Clock;
+      auto now = Clock::now();
+      auto milliseconds = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+//      auto fraction = now - seconds;
+      time_t cnow = Clock::to_time_t(now);
+      //auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::time_point_cast<std::chrono::seconds>(now));
+      sprintf(buffer,"core_%d.txt",milliseconds);
+      myfile2.open(buffer);
+     //Write all fit parameters out in the first line
+      for (int i=0;i<n;i++){
+//          if(abs(x[i])<0.0001){ //for x
+          if(abs(x[i])<0.1){ //for ds
+              myfile2 << i<<", "<<x[i]<< "\n"; 
+          }
+      }  
+      myfile2.close();
+      
+      //Grab a spot in the tail for monitoring the core/tail ratio
+      std::ofstream myfile3;
+      sprintf(buffer,"tail_%d.txt",milliseconds);
+      myfile3.open(buffer);
+      for (int i=0;i<n;i++){
+//          if(x[i]<0.0012 && x[i]>0.001){ //for x
+          if(x[i]<10.2 && x[i]>10.0){ //for ds
+          myfile3 << i<<", "<<x[i]<< "\n"; 
+          }
+      }  
+      myfile3.close();
+      
+      
   }
      
   //Set the outputs, make sure the narrow peak comes out first
