@@ -52,7 +52,7 @@ std::vector<string> E_BEAM_ARGS = {"GAMMA", "TMP_TR", "TMP_L", "SHAPE", "RADIUS"
     "SIGMA_Z", "LENGTH", "E_NUMBER", "RH", "RV", "R_INNER", "R_OUTTER", "PARTICLE_FILE", "TOTAL_PARTICLE_NUMBER",
     "BOX_PARTICLE_NUMBER", "LINE_SKIP", "VEL_POS_CORR","BINARY_FILE","BUFFER_SIZE"};
 std::vector<string> ECOOL_ARGS = {"SAMPLE_NUMBER", "FORCE_FORMULA"};
-std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","UNMAGNETIZED","BUDKER"};
+std::vector<string> FRICTION_FORCE_FORMULA = {"PARKHOMCHUK", "DERBENEVSKRINSKY","MESHKOV","UNMAGNETIZED","BUDKER","POGORELOV"};
 std::vector<string> SIMULATION_ARGS = {"TIME", "STEP_NUMBER", "SAMPLE_NUMBER", "IBS", "E_COOL", "OUTPUT_INTERVAL",
     "SAVE_PARTICLE_INTERVAL", "OUTPUT_FILE", "MODEL", "REF_BET_X", "REF_BET_Y", "REF_ALF_X", "REF_ALF_Y",
     "REF_DISP_X", "REF_DISP_Y", "REF_DISP_DX", "REF_DISP_DY", "FIXED_BUNCH_LENGTH", "RESET_TIME", "OVERWRITE",
@@ -576,8 +576,8 @@ void calculate_ecool(Set_ptrs &ptrs) {
     assert(n_sample > 0 && "WRONG PARAMETER VALUE FOR ELECTRON COOLING RATE CALCULATION!");
     EcoolRateParas ecool_paras(n_sample);
 
-    force_paras = ChooseForce(ptrs.ecool_ptr->force);   
-    
+    force_paras = ChooseForce(ptrs.ecool_ptr->force);
+
     assert(ptrs.ion_beam.get()!=nullptr && "MUST CREATE THE ION BEAM BEFORE CALCULATE ELECTRON COOLING RATE!");
     assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE CALCULATE ELECTRON COOLING RATE!");
     double rx, ry, rz;
@@ -816,8 +816,8 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     var = trim_tab(var);
     val = trim_blank(val);
     val = trim_tab(val);
-    
-    
+
+
     if (var=="SIGMA_X") {
         opt_args->mod_names.push_back("sigma_x");
         opt_args->initial_values.push_back(std::stod(val));
@@ -864,7 +864,7 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     }
     else if (var=="DISP_H") {
     opt_args->mod_names.push_back("disp_h");
-        opt_args->initial_values.push_back(std::stod(val));    
+        opt_args->initial_values.push_back(std::stod(val));
     }
     else if (var=="DISP_DER_V") {
         opt_args->mod_names.push_back("disp_der_v");
@@ -872,14 +872,14 @@ void define_optimizer(std::string &str,Set_optimizer *opt_args) {
     }
     else if (var=="DISP_DER_H") {
     opt_args->mod_names.push_back("disp_der_h");
-        opt_args->initial_values.push_back(std::stod(val));    
+        opt_args->initial_values.push_back(std::stod(val));
     }
     else if (var=="BFIELD") {
         opt_args->mod_names.push_back("bfield");
         opt_args->initial_values.push_back(std::stod(val));
     }
-        
-}    
+
+}
 
 
 void optimize_cooling(Set_ptrs &ptrs) {
@@ -927,12 +927,12 @@ void optimize_cooling(Set_ptrs &ptrs) {
     else dynamic_paras->set_overwrite(false);
     if (ptrs.dynamic_ptr->calc_luminosity) dynamic_paras->set_calc_lum(true);
     else dynamic_paras->set_calc_lum(false);
-    
+
     if(dynamic_paras->model()==DynamicModel::PARTICLE && !ecool)
         assert(n_sample>0 && "SET N_SAMPLE FOR SIMULATION!");
 
     assert(ptrs.ring.get()!=nullptr && "MUST CREATE THE RING BEFORE SIMULATION!");
-    
+
     if (ecool) {
         assert(ptrs.e_beam.get()!=nullptr && "NEED TO CREATE THE E_BEAM BEFORE SIMULATION!");
         assert(ptrs.cooler.get()!=nullptr && "NEED TO CREATE THE COOLER BEFORE SIMULATION!");
@@ -971,14 +971,14 @@ void optimize_cooling(Set_ptrs &ptrs) {
     // arg InitialValues is a vector of doubles, matched 1:1 with the params.
     // This is done with vectors to allow for a variable number of
     // floating parameters.
-    
-    Oppo->Optimize_From_UI(ptrs.optimizer_ptr->mod_names, 
-                           ptrs.optimizer_ptr->initial_values, 
-                           *ptrs.ion_beam, 
-                           *ptrs.cooler, 
-                           *ptrs.e_beam, 
+
+    Oppo->Optimize_From_UI(ptrs.optimizer_ptr->mod_names,
+                           ptrs.optimizer_ptr->initial_values,
+                           *ptrs.ion_beam,
+                           *ptrs.cooler,
+                           *ptrs.e_beam,
                            *ptrs.ring,
-                           ptrs.ecool_ptr->force);    
+                           ptrs.ecool_ptr->force);
 }
 
 
@@ -1560,6 +1560,7 @@ void set_ecool(string &str, Set_ecool *ecool_args){
         else if (val=="MESHKOV") ecool_args->force = ForceFormula::MESHKOV;
         else if (val=="UNMAGNETIZED") ecool_args->force = ForceFormula::UNMAGNETIZED;
         else if (val=="BUDKER") ecool_args->force = ForceFormula::BUDKER;
+        else if (val=="POGORELOV") ecool_args->force = ForceFormula::POGORELOV;
 
         else assert(false&&"Friction force formula NOT exists!");
     }
