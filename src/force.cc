@@ -762,7 +762,7 @@ void Force_Pogorelov::force(double v_tr, double v_long, double d_perp_e, double 
     //Now the Pogorelov formulation
 
     double A = 2.0 * k_pi * (float)charge_number*charge_number * density_e * k_me_kg * k_re*k_re * k_c*k_c*k_c*k_c;
-    double argument = (k_pi * charge_number * k_re * k_c*k_c) / (k_me * d_paral_e*d_paral_e); //Subbing m*delta^2 for temperature
+    double argument = (k_pi * charge_number * k_re * k_c*k_c) / (time_cooler);
     double sigma = pow( argument , 1.0/3.0);
 
 //    std::cout<<"Z = "<<charge_number<<" n_e = "<<density_e<<" temperature ="<<k_me * d_paral_e*d_paral_e<<std::endl;
