@@ -7,11 +7,19 @@
 #include "cooler.h"
 #include "force.h"
 #include "functions.h"
-#include "ring.h"
+#include "fit.h"
 
 #include <fstream>
 #include <vector>
 #include <float.h>
+
+//For fit test
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_multifit_nlinear.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 std::unique_ptr<double []> x_bet, xp_bet, y_bet, yp_bet, ds, dp_p, x, y, xp, yp, ne;
 std::unique_ptr<double []> force_x, force_y, force_z, v_tr, v_long;
@@ -33,7 +41,7 @@ EcoolRateParas::EcoolRateParas(const EcoolRateParas& old_ecool){
     n_long_ = old_ecool.n_long();
     shift_ = old_ecool.shift();
     bunch_separate_ = old_ecool.bunch_separate();
-    n_long_sample_ = old_ecool.n_long_sample();    
+    n_long_sample_ = old_ecool.n_long_sample();
 }
 
 //Initialize the scratch variables for electron cooling rate calculation.
@@ -78,13 +86,190 @@ double emit(double * x, double * xp, unsigned int n){
     for(unsigned int i=0; i<n; ++i){
         double x_adj = x[i]-x_mean;
         double xp_adj = xp[i]-xp_mean;
-        dlt2_x += x_adj*x_adj;
-        dlt2_xp += xp_adj*xp_adj;
-        dlt_xxp += x_adj*xp_adj;
+        dlt2_x += x_adj * x_adj;
+        dlt2_xp += xp_adj * xp_adj;
+        dlt_xxp += x_adj * xp_adj;
     }
 //    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
-    emit = sqrt(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp)/n;
-    
+    emit = sqrt( dlt2_x * dlt2_xp - dlt_xxp * dlt_xxp )/n;
+
+    return emit;
+}
+
+void pairsort(double a[], double b[], int n)
+{
+    std::pair<double, double> pairt[n];
+
+    // Storing the respective array
+    // elements in pairs.
+    for (int i = 0; i < n; i++)
+    {
+        pairt[i].first = abs(a[i]);
+        pairt[i].second = b[i];
+    }
+
+    // Sorting the pair array.
+    std::sort(pairt, pairt + n);
+
+    // Modifying original arrays
+    for (int i = 0; i < n; i++)
+    {
+        a[i] = pairt[i].first;
+        b[i] = pairt[i].second;
+    }
+}
+
+double emit_fit(double *x, double * xp, unsigned int n, fit_results& FR,bool print)
+{
+    double x_mean, xp_mean;
+    double x_sigma, xp_sigma;
+    double x_amplitude,xp_amplitude;
+    double chisq;
+    int n_bins = 400;
+
+    fit *fitter = new fit();
+    fitter->gaus_fit(x,n,&x_amplitude,&x_mean,&x_sigma,&chisq, n_bins);
+    fitter->gaus_fit(xp,n,&xp_amplitude,&xp_mean,&xp_sigma,&chisq, n_bins);
+
+    FR.amplitude_ = x_amplitude;
+    FR.mean_ = x_mean;
+    FR.sigma_ = x_sigma;
+    FR.chisq_ = chisq;
+
+    //Calculate the normalized emittance asssuming a gaussian fit
+    double dlt2_x = x_sigma * x_sigma * n;
+    double dlt2_xp = xp_sigma * xp_sigma * n;
+    double dlt_xxp = 0;
+    for(unsigned int i=0; i<n; ++i){
+        double x_adj = x[i]-x_mean;
+        double xp_adj = xp[i]-xp_mean;
+        dlt_xxp += x_adj * xp_adj;
+    }
+    //    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
+    double emit = sqrt( dlt2_x * dlt2_xp - dlt_xxp * dlt_xxp )/n;
+
+    //Fit a double gaussian and propogate the
+    double x_mean1, x_mean2, xp_mean1, xp_mean2;
+    double x_sigma1, x_sigma2, xp_sigma1, xp_sigma2;
+    double x_amp1, x_amp2, xp_amp1, xp_amp2;
+    double chisq1;
+
+    //We've guaranteed that the narrowest peak is 1
+    fitter->double_gaus_fit(x,n, &x_amp1, &x_mean1, &x_sigma1,
+                              &x_amp2, &x_mean2, &x_sigma2, &chisq1, n_bins,print);
+    fitter->double_gaus_fit(xp,n, &xp_amp1, &xp_mean1, &xp_sigma1,
+                              &xp_amp2, &xp_mean2, &xp_sigma2, &chisq1, n_bins,false); //don't print
+
+    FR.amplitude1_ = x_amp1;
+    FR.amplitude2_ = x_amp2;
+    FR.mean1_ = x_mean1;
+    FR.mean2_ = x_mean2;
+    FR.sigma1_ = x_sigma1;
+    FR.sigma2_ = x_sigma2;
+    FR.chisq2_ = chisq1;
+
+    double emit1, emit2;
+
+    if(false){
+    //Calculate the normalized emittance for the inner gaussian
+      double dlt2_x1 = 0.0;
+      double dlt2_xp1 = 0.0;
+      double dlt_xxp1 = 0.0;
+      for(unsigned int i=0; i<n; ++i){
+        double x1_adj = x[i]-x_mean1;
+        double xp1_adj = xp[i]-xp_mean1;
+        dlt_xxp1 += x1_adj * xp1_adj;
+        dlt2_x1 += x1_adj * x1_adj;
+        dlt2_xp1 += xp1_adj * xp1_adj;
+        dlt_xxp1  += x1_adj * xp1_adj;
+      }
+//    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
+      emit1 = sqrt( dlt2_x1 * dlt2_xp1 - dlt_xxp1 * dlt_xxp1 )/n;
+
+    //Calculate the normalized emittance for the outer gaussian
+      double dlt2_x2  = 0.0;
+      double dlt2_xp2 = 0.0;
+      double dlt_xxp2 = 0.0;
+      for(unsigned int i=0; i<n; ++i){
+        double x2_adj = x[i]-x_mean2;
+        double xp2_adj = xp[i]-xp_mean2;
+        dlt_xxp2 += x2_adj * xp2_adj;
+        dlt2_x2 += x2_adj * x2_adj;
+        dlt2_xp2 += xp2_adj * xp2_adj;
+        dlt_xxp2  += x2_adj * xp2_adj;
+      }
+//    emit = sqrt(fabs(dlt2_x*dlt2_xp-dlt_xxp*dlt_xxp))/n;
+      emit2 = sqrt( dlt2_x2 * dlt2_xp2 - dlt_xxp2 * dlt_xxp2 )/n;
+
+      int n1 = floor(n * (x_amp1*x_sigma1) / ( (x_amp1*x_sigma1) + (x_amp2*x_sigma2) ) );
+      int n2 = n - n1;
+
+      std::cout<<"Counts: "<<n<<" : "<<n1<<" : "<<n2<<std::endl;
+
+    }
+
+    if(true){
+        //Split the emittance calculation up between the two distributions.
+        // Integrate the two gaussian fits to determine the relative populations
+        //Recall integral of gaussian = sqrt(2pi) * amplitude * sigma
+
+        int n1 = floor(n * (x_amp1*x_sigma1) / ( (x_amp1*x_sigma1) + (x_amp2*x_sigma2) ) );
+        int n2 = n - n1;
+
+        //Sort x by centrality with a lambda. Make deep copies first
+        double *x_sorted = new double[n];
+        double *xp_sorted = new double[n];
+        for(int i=0;i<n;i++){
+            x_sorted[i] = x[i];
+            xp_sorted[i] = xp[i];
+        }
+
+        //Sort ascending based on the x value, with the same ordering for xp
+        pairsort(x_sorted, xp_sorted, n);
+
+        double dlt2_x1 = 0.0;
+        double dlt2_xp1 = 0.0;
+        double dlt_xxp1 = 0.0;
+        for(unsigned int i=0; i<n1; ++i){
+            double x_adj1 = x_sorted[i]-x_mean1;
+            double xp_adj1 = xp_sorted[i]-xp_mean1;
+            dlt2_x1 += x_adj1 * x_adj1;
+            dlt2_xp1 += xp_adj1 * xp_adj1;
+            dlt_xxp1 += x_adj1 * xp_adj1;
+        }
+
+        emit1 = sqrt( dlt2_x1 * dlt2_xp1 - dlt_xxp1 * dlt_xxp1 )/n1;
+
+        double dlt2_x2 = 0.0;
+        double dlt2_xp2 = 0.0;
+        double dlt_xxp2 = 0.0;
+        for(unsigned int i=n1; i<n; ++i){
+            double x_adj2 = x_sorted[i]-x_mean2;
+            double xp_adj2 = xp_sorted[i]-xp_mean2;
+            dlt2_x2 += x_adj2 * x_adj2;
+            dlt2_xp2 += xp_adj2 * xp_adj2;
+            dlt_xxp2 += x_adj2 * xp_adj2;
+        }
+
+        emit2 = sqrt( dlt2_x2 * dlt2_xp2 - dlt_xxp2 * dlt_xxp2 )/n2;
+
+        std::cout<<"Counts: "<<n<<" : "<<n1<<" : "<<n2<<std::endl;
+    }
+
+    int n1 = floor(n * (x_amp1*x_sigma1) / ( (x_amp1*x_sigma1) + (x_amp2*x_sigma2) ) );
+    int n2 = n - n1;
+
+    FR.n_     = n;
+    FR.n1_    = n1;
+    FR.n2_    = n2;
+    FR.emit1_ = emit1;
+    FR.emit2_ = emit2;
+
+    std::cout<<"Emittance: "<<emit<<" : "<<emit1<<" : "<<emit2<<std::endl;
+    std::cout << "Gaussian: " << x_sigma << " :" << chisq/((double)n_bins - 3.) << std::endl;
+    std::cout << " DblGaus: " << x_sigma1 << " " << x_sigma2 << " : " << chisq1/((double)n_bins - 6.) << std::endl;
+
+
     return emit;
 }
 
@@ -99,10 +284,73 @@ double emit_p(double * dp_p, unsigned int n){
 
     for(unsigned int i=0; i<n; ++i){
         double dp_p_adj = dp_p[i] - dp_p_mean;
-        emit_p += dp_p_adj*dp_p_adj;
+        emit_p += dp_p_adj * dp_p_adj;
     }
     emit_p /= n;
-       
+
+    return emit_p;
+}
+
+
+double emit_p_fit(double * dp_p, unsigned int n, fit_results& FR,bool print)
+{
+    double emit_p = 0.0;
+    double dp_p_mean, dp_p_amplitude, dp_p_sigma, chisq;
+    int n_bins = 400;
+    double emit1 = 0.0;
+    double emit2 = 0.0;
+
+
+    fit *fitter = new fit();
+    fitter->gaus_fit(dp_p,n,&dp_p_amplitude,&dp_p_mean,&dp_p_sigma,&chisq, n_bins);
+
+    FR.amplitude_ = dp_p_amplitude;
+    FR.mean_ = dp_p_mean;
+    FR.sigma_ = dp_p_sigma;
+    FR.chisq_ = chisq;
+
+
+    for(unsigned int i=0; i<n; ++i){
+        double dp_p_adj = dp_p[i] - dp_p_mean;
+        emit_p += dp_p_adj * dp_p_adj;
+    }
+    emit_p /= n;
+
+
+    //Fit a double gaussian
+    double dp_p_mean1, dp_p_mean2;
+    double dp_p_sigma1, dp_p_sigma2;
+    double dp_p_amp1, dp_p_amp2;
+    double chisq1;
+
+    //We've guaranteed that the narrowest peak is 1
+    fitter->double_gaus_fit(dp_p,n, &dp_p_amp1, &dp_p_mean1, &dp_p_sigma1,
+                              &dp_p_amp2, &dp_p_mean2, &dp_p_sigma2, &chisq1, n_bins,print);
+
+    FR.amplitude1_ = dp_p_amp1;
+    FR.amplitude2_ = dp_p_amp2;
+    FR.mean1_ = dp_p_mean1;
+    FR.mean2_ = dp_p_mean2;
+    FR.sigma1_ = dp_p_sigma1;
+    FR.sigma2_ = dp_p_sigma2;
+    FR.chisq2_ = chisq1;
+
+    emit1 = dp_p_sigma1;
+
+    emit2 = dp_p_sigma2;
+
+    int n1 = floor(n * (dp_p_amp1*dp_p_sigma1) / ( (dp_p_amp1*dp_p_sigma1) + (dp_p_amp2*dp_p_sigma2) ) );
+    int n2 = n - n1;
+
+    std::cout<<"Long. Counts: "<<n<<" : "<<n1<<" : "<<n2<<std::endl;
+
+    FR.emit1_ = emit1;
+    FR.emit2_ = emit2;
+
+    std::cout<<"Long. Emittance: "<<emit<<" : "<<emit1<<" : "<<emit2<<std::endl;
+    std::cout << "Long. Gaussian: " << dp_p_sigma << " :" << chisq/((double)n_bins - 3.) << std::endl;
+    std::cout << " Long. DblGaus: " << dp_p_sigma1 << " " << dp_p_sigma2 << " : " << chisq1/((double)n_bins - 6.) << std::endl;
+
     return emit_p;
 }
 
@@ -116,7 +364,7 @@ double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n){
 
     for(unsigned int i=0; i<n; ++i){
         double dp_p_adj = dp_p[i] - dp_p_mean;
-        emit_p += dp_p_adj*dp_p_adj;
+        emit_p += dp_p_adj * dp_p_adj;
     }
 
     double emit_s = 0;
@@ -133,9 +381,91 @@ double emit_p(double * dp_p, double * ds, Ring &ring, unsigned int n){
     emit_s /= (ring.beta_s()*ring.beta_s());
 
     emit_p = (emit_p + emit_s)/n;
-        
+
     return emit_p;
 }
+
+double emit_p_fit(double * dp_p, double * ds, Ring &ring, unsigned int n, fit_results &FRp, fit_results &FRs, bool print){
+    
+    //Fit the dp/p distribution and ds distribution separately
+
+    double emit_p = 0.0;
+    double dp_p_mean, dp_p_amplitude, dp_p_sigma, chisq;
+    int n_bins = 400;
+    double emit1 = 0.0;
+    double emit2 = 0.0;
+
+    fit *fitter = new fit();
+    fitter->gaus_fit(dp_p,n,&dp_p_amplitude,&dp_p_mean,&dp_p_sigma,&chisq, n_bins);
+
+    FRp.amplitude_ = dp_p_amplitude;
+    FRp.mean_ = dp_p_mean;
+    FRp.sigma_ = dp_p_sigma;
+    FRp.chisq_ = chisq;
+
+    for(unsigned int i=0; i<n; ++i){
+        double dp_p_adj = dp_p[i] - dp_p_mean;
+        emit_p += dp_p_adj * dp_p_adj;
+    }
+    emit_p /= n;
+
+
+    //Fit a double gaussian
+    double dp_p_mean1, dp_p_mean2;
+    double dp_p_sigma1, dp_p_sigma2;
+    double dp_p_amp1, dp_p_amp2;
+    double chisq1;
+
+    //We've guaranteed that the narrowest peak is 1
+    fitter->double_gaus_fit(dp_p,n, &dp_p_amp1, &dp_p_mean1, &dp_p_sigma1,
+                              &dp_p_amp2, &dp_p_mean2, &dp_p_sigma2, &chisq1, n_bins,print);
+
+    FRp.amplitude1_ = dp_p_amp1;
+    FRp.amplitude2_ = dp_p_amp2;
+    FRp.mean1_ = dp_p_mean1;
+    FRp.mean2_ = dp_p_mean2;
+    FRp.sigma1_ = dp_p_sigma1;
+    FRp.sigma2_ = dp_p_sigma2;
+    FRp.chisq2_ = chisq1;
+
+//Now fit ds
+    double ds_mean, ds_amplitude, ds_sigma;
+    double ds_mean1, ds_mean2;
+    double ds_sigma1, ds_sigma2;
+    double ds_amp1, ds_amp2;
+
+    fitter->gaus_fit(ds,n,&ds_amplitude,&ds_mean,&ds_sigma,&chisq, n_bins);
+
+    FRs.amplitude_ = ds_amplitude;
+    FRs.mean_ = ds_mean;
+    FRs.sigma_ = ds_sigma;
+    FRs.chisq_ = chisq;
+
+    //Fit the double gaussian
+    // We've guaranteed that the narrowest peak is 1
+    fitter->double_gaus_fit(ds,n, &ds_amp1, &ds_mean1, &ds_sigma1,
+                              &ds_amp2, &ds_mean2, &ds_sigma2, &chisq1, n_bins,print);
+
+    FRs.amplitude1_ = ds_amp1;
+    FRs.amplitude2_ = ds_amp2;
+    FRs.mean1_ = ds_mean1;
+    FRs.mean2_ = ds_mean2;
+    FRs.sigma1_ = ds_sigma1;
+    FRs.sigma2_ = ds_sigma2;
+    FRs.chisq2_ = chisq1;
+        
+    double emit_s1 = ds_sigma1;
+    double emit_s2 = ds_sigma2;
+
+    emit_s1 /= (ring.beta_s()*ring.beta_s());
+    emit_s2 /= (ring.beta_s()*ring.beta_s());
+        
+    emit_p = (dp_p_sigma1 + emit_s1)/n;
+//    emit_p = (dp_p_sigma2 + emit_s2)/n;
+    
+    return emit_p;
+}
+
 
 
 //Generate Gaussian random number in S frame with given Twiss parameters
@@ -903,14 +1233,25 @@ int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &io
     force_distribute(n_sample,ion);
     //Original emittance
     double emit_x0, emit_y0, emit_z0;
-    original_emittance(ecool_paras, ion, emit_x0, emit_y0, emit_z0);
-//    original_emittance(ecool_paras, ring, ion, emit_x0, emit_y0, emit_z0);
+
+    //Archive a copy of the parameters
+    double *xp_archive = new double[n_sample];
+    double *yp_archive = new double[n_sample];
+    double *dp_p_archive = new double[n_sample];
+    for(unsigned int i=0;i<n_sample;i++){
+        xp_archive[i] = xp[i];
+        yp_archive[i] = yp[i];
+        dp_p_archive[i] = dp_p[i];
+    }
+
+//    original_emittance(ecool_paras, ion, emit_x0, emit_y0, emit_z0);
+    original_emittance(ecool_paras, ring, ion, emit_x0, emit_y0, emit_z0);
     //Apply kick
-    apply_kick(n_sample, ion);
+    apply_kick(n_sample, ion); //Note: This mutates the global xp,yp,dp_p values
     //New emittance
     double emit_x, emit_y, emit_z;
-    new_emittance(ecool_paras, ion, cooler, emit_x, emit_y, emit_z);
-//    new_emittance(ecool_paras, ion, ring, cooler, emit_x, emit_y, emit_z);
+//    new_emittance(ecool_paras, ion, cooler, emit_x, emit_y, emit_z);
+    new_emittance(ecool_paras, ion, ring, cooler, emit_x, emit_y, emit_z);
     //rate
     rate_x = emit_x/emit_x0-1;
     rate_y = emit_y/emit_y0-1;
@@ -920,44 +1261,56 @@ int ecooling_rate(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &io
     rate_y *= freq;
     rate_s *= freq;
     adjust_rate(ecool_paras, ion, ring, cooler, ebeam, rate_x, rate_y, rate_s);
+
+    //Replace with archived values so cooling kick is not double-counted
+    for(unsigned int i=0;i<n_sample;i++){
+        xp[i] = xp_archive[i];
+        yp[i] = yp_archive[i];
+        dp_p[i] = dp_p_archive[i];
+    }
+
+    delete xp_archive;
+    delete yp_archive;
+    delete dp_p_archive;
+
     return 0;
 }
 
 
 //Fix V_tr or V_long and calculate the force at different values.
 // Using the built-in functions within ecooling to initialize all the
-// variables as in an ecooling calculation, but then swapping out the 
+// variables as in an ecooling calculation, but then swapping out the
 // velocities to calculate the forces needed for plotting.
 int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &ion, Cooler &cooler, EBeam &ebeam,
                   Ring &ring){
 
-    
+
     //Initialize the scratch variables based on the beam configuration
     // defined by all the function arguments
     config_ecooling(ecool_paras, ion);
-    
+
     //Create the ion samples
     ion_sample(ecool_paras, ion, ring, cooler);
-    
+
     unsigned int n_sample = ecool_paras.n_sample();
-    
-    //Calculate the electron density for each ion   
+
+    //Calculate the electron density for each ion
     electron_density(ecool_paras, ion, ebeam);
-    
+
     //Phase space variables to dynamic variables
     space_to_dynamic(n_sample, ion);
-    
+
     //Time through the cooler
     t_cooler = cooler.length()/(ion.beta()*k_c);
 
     //Transfer into e- beam frame
     beam_frame(n_sample, ebeam.gamma());
-    
-    //In the beam frame, determine the max/min velocities in v_long 
+
+    //In the beam frame, determine the max/min velocities in v_long
     // and v_tr in the specified beam configuration
     double v_long_max, v_tr_max, ne_max = - DBL_MAX;
     double v_long_min, v_tr_min, ne_min = DBL_MAX;
- 
+
     for(int i=0;i<n_sample;i++){
         if(v_long[i] > v_long_max) {
             if(v_long[i] < k_c) v_long_max = v_long[i];
@@ -965,34 +1318,34 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
         if(v_tr[i]   > v_tr_max) {
             if(v_tr[i] < k_c)   v_tr_max = v_tr[i];
         }
-        
+
         if(v_long[i] < v_long_min){
             if(v_long[i] > -k_c) v_long_min = v_long[i];
         }
         if(v_tr[i]   < v_tr_min) {
             if(v_tr[i] > -k_c)   v_tr_min = v_tr[i];
         }
-        
+
         if(ne[i] > ne_max) ne_max = ne[i];
-        if(ne[i] < ne_min) ne_min = ne[i];   
+        if(ne[i] < ne_min) ne_min = ne[i];
     }
 
-    //Protect against some extraneous large values    
+    //Protect against some extraneous large values
     // that wreck our v_interval. This was observed
-    //only once and wasn't reproducible.    
+    //only once and wasn't reproducible.
     //Enforce speed limits.
     if(v_tr_min < -k_c) v_tr_min = -k_c;
     if(v_tr_max > k_c) v_tr_max = k_c;
-    
+
     //TODO: This is a temporary (permenant?) hack to fix the velocities that are calculated
     v_tr_max = 6e5;
     v_tr_min = 0;
     v_long_max = 6e5;
     v_long_min = -6e5;
-    
+
 
     //Define the values of the velocities for reporting
-    // on the dependence of v_long. We set v_long = 0 for 
+    // on the dependence of v_long. We set v_long = 0 for
     // calculating f_tr, and v_tr = 0 for calculating f_long.
     double v_interval = (v_tr_max - v_tr_min)/n_sample;
 
@@ -1007,7 +1360,7 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     //Our v_tr values are already set. Zero out v_long
     for(int i=0;i<n_sample;i++){
         v_tr[i] = v_tr_min + (double)i*v_interval;
-        v_long[i] = 0.0;   
+        v_long[i] = 0.0;
         //yp[i]  = 0.0 ; // Focus on transverse only in x direction
         ne[i] = ne_max;  //We need a constant n_e for a smooth plot
     }
@@ -1019,7 +1372,7 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     // calculate f_long
     std::vector< double > v_tmp;
     std::vector< double > f_tmp;
-    
+
     for(int i=0;i<n_sample;i++){
         v_tmp.push_back(v_tr[i]);
         f_tmp.push_back(force_x[i]);
@@ -1029,7 +1382,7 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
     v_interval = (v_long_max - v_long_min)/n_sample;
     for(int i=0;i<n_sample;i++){
         v_long[i]  = v_long_min + (double)i*v_interval;
-        v_tr[i]    = 0.0;   
+        v_tr[i]    = 0.0;
         force_x[i] = 0.0;
         force_y[i] = 0.0;
         force_z[i] = 0.0;
@@ -1063,14 +1416,14 @@ int CalculateForce(EcoolRateParas &ecool_paras, ForceParas &force_paras, Beam &i
         v_tr[i]    = v_tmp[i];
         force_x[i] = f_tmp[i];
     }
-    
+
     //We don't want to transfer the velocities back to lab frame
-    //lab_frame(n_sample, ebeam.gamma());  
+    //lab_frame(n_sample, ebeam.gamma());
     //end_ecooling(ecool_paras, ion);
 
-    //TODO: Betacool shows this as a 2d contour plot. Should we instead calculate 
+    //TODO: Betacool shows this as a 2d contour plot. Should we instead calculate
     // on a grid to prepare for this kind of plot in the future?
-    
-           
+
+
     return 0;
 }

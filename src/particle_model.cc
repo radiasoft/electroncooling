@@ -67,18 +67,65 @@ void particle_model_ibs_scratches() {
 void ibs_kick(unsigned int n_sample, double rate, double twiss, double dt, double emit, double* p) {
 
     if (rate>0) {
-        double theta = sqrt(2*rate*dt*emit/twiss);
+        double theta = sqrt(2 * rate * dt * emit / twiss);
         gaussian_random(n_sample, rdn.get(), 1, 0);
-        #ifdef _OPENMP
-            #pragma omp parallel for num_threads(5)
-        #endif
-        for(unsigned int i=0; i<n_sample; ++i) p[i] += theta*rdn[i];
+        
+        for(unsigned int i=0; i<n_sample; ++i) p[i] += theta * rdn[i];
     }
     else {
-        double k = exp(rate*dt);
-        #ifdef _OPENMP
-            #pragma omp parallel for num_threads(5)
-        #endif
+        double k = exp(rate * dt);
+        for(unsigned int i=0; i<n_sample; ++i) p[i] *= k;
+    }
+}
+
+//Overloaded function to calculate ibs kick when there's a double
+// gaussian distribution leading to two rates and emittances
+void ibs_kick(Beam &ion,
+              double rate1, double rate2, 
+              double twiss, double dt,
+              double *x, double* p, fit_results &FR) {
+
+    if (rate1>0) {
+        
+        //Do some things outside the loop for efficiency's sake
+        //
+        // Calculate the combined rate for a macroparticle in the center
+        int n1 = FR.n1_ * FR.n1_;
+        int n2 = FR.n2_ * FR.n2_;
+        int n_sample = n1 + n2;
+        n1 /= (n_sample*n_sample);
+        n2 /= (n_sample*n_sample);
+        
+        //Correct for consistency in the limiting case that both gaussian components are equal
+        double rate_comb = 4*( (rate1 * n1) + (rate2 * n2 * FR.emit2_ / FR.emit1_));
+        
+        //Constant for the core (core+tail)
+        double theta1 = sqrt(2 * rate_comb * dt * FR.emit1_ / twiss);
+        //Constant for the tail only
+        double theta2 = sqrt(2 * rate2 * dt * FR.emit2_ / twiss);
+
+        gaussian_random(n_sample, rdn.get(), 1, 0);
+        
+#ifdef _OPENMP
+        #pragma omp parallel for num_threads(5)
+#endif
+        for(unsigned int i=0; i<n_sample;++i){            
+            //Z-score threshold to define core/tail
+            double width = 1.0;
+            //Swap between tail and core kicks, no smooth transition
+            double theta = theta2;
+            if(abs(x[i]) > width * FR.sigma1_){
+                theta = theta1;
+            }
+            
+            //Apply the macro-particle-specific kick
+            p[i] += theta * rdn[i];    
+        }
+    }
+    else {
+        //std::cout<<"rate1=<0"<<std::endl;
+        double k = exp(rate1 * dt);
+        std::cout<<k<<std::endl;
         for(unsigned int i=0; i<n_sample; ++i) p[i] *= k;
     }
 }
@@ -110,9 +157,9 @@ void apply_cooling_kick(double t_cooler, double freq, double dt) {
         #pragma omp parallel for num_threads(5)
     #endif
     for(unsigned int i=0; i<n_sample; ++i) {
-        xp[i] = !iszero(xp[i])?xp[i]*exp(force_x[i]*t_cooler*dt*freq/(xp[i]*p0)):xp[i];
-        yp[i] = !iszero(yp[i])?yp[i]*exp(force_y[i]*t_cooler*dt*freq/(yp[i]*p0)):yp[i];
-        dp_p[i] = !iszero(dp_p[i])?dp_p[i]*exp(force_z[i]*t_cooler*dt*freq/(dp_p[i]*p0)):dp_p[i];
+        xp[i] = !iszero(xp[i]) ? xp[i] * exp( force_x[i] * t_cooler * dt * freq / (xp[i] * p0) ) : xp[i];
+        yp[i] = !iszero(yp[i]) ? yp[i] * exp( force_y[i] * t_cooler * dt * freq / (yp[i] * p0) ) : yp[i];
+        dp_p[i] = !iszero(dp_p[i]) ? dp_p[i] * exp( force_z[i] * t_cooler * dt * freq / (dp_p[i] * p0) ) : dp_p[i];
 //        xp[i] = xp[i]!=0?xp[i]*exp(force_x[i]*t_cooler*dt*freq/(xp[i]*p0)):xp[i];
 //        yp[i] = yp[i]!=0?yp[i]*exp(force_y[i]*t_cooler*dt*freq/(yp[i]*p0)):yp[i];
 //        dp_p[i] = dp_p[i]!=0?dp_p[i]*exp(force_z[i]*t_cooler*dt*freq/(dp_p[i]*p0)):dp_p[i];
@@ -133,6 +180,26 @@ void apply_ibs_kick(double dt, Beam &ion, std::vector<double> &r_ibs) {
     else
         ibs_kick(n_sample, rs_ibs, 2, dt, ion.dp_p()*ion.dp_p(), dp_p.get());
 }
+
+void apply_ibs_kick_DG(double dt, Beam &ion, std::vector<double> &r_ibs) {
+    assert(dynamic_paras->twiss_ref.bet_x>0&& dynamic_paras->twiss_ref.bet_y>0
+                   &&"TWISS parameters for the reference point not defined! Define twiss_ref.");
+    double rx_ibs1 = r_ibs.at(0);
+    double ry_ibs1 = r_ibs.at(1);
+    double rs_ibs1 = r_ibs.at(2);
+    double rx_ibs2 = r_ibs.at(3);
+    double ry_ibs2 = r_ibs.at(4);
+    double rs_ibs2 = r_ibs.at(5);
+    
+    ibs_kick(ion, rx_ibs1,rx_ibs2, dynamic_paras->twiss_ref.bet_x, dt, x.get(),xp.get(),*ion.FRx);
+    ibs_kick(ion, ry_ibs1,ry_ibs2, dynamic_paras->twiss_ref.bet_y, dt, y.get(),yp.get(),*ion.FRy);
+    
+    if (ion.bunched())
+        ibs_kick(n_sample, rs_ibs2, 1, dt, ion.dp_p()*ion.dp_p(), dp_p.get());
+    else
+        ibs_kick(n_sample, rs_ibs2, 2, dt, ion.dp_p()*ion.dp_p(), dp_p.get());
+}
+
 
 void move_particles(Beam &ion, Ring &ring) {
     //New betatron oscillation coordinates
@@ -191,17 +258,42 @@ void move_particles(Beam &ion, Ring &ring) {
     adjust_disp(dpy, yp_bet.get(), dp_p.get(), yp.get(), n_sample);
 }
 
-void update_beam_parameters(Beam &ion) {
-    double emit_x = emit(x_bet.get(), xp_bet.get(), n_sample);
-    double emit_y = emit(y_bet.get(), yp_bet.get(), n_sample);
-    double dp = sqrt(emit_p(dp_p.get(), n_sample));
+void update_beam_parameters(Beam &ion, Ring &ring) {
+    //double emit_x = emit(x_bet.get(), xp_bet.get(), n_sample);
+    //Try out the emittance fit caculations
+    //double emitfit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample);
 
+    fit_results *FRx = new fit_results();
+    double emit_x = emit_fit(x_bet.get(),xp_bet.get(),n_sample, *FRx,false);
+
+    //double emit_y = emit(y_bet.get(), yp_bet.get(), n_sample);
+    fit_results *FRy = new fit_results();
+    double emit_y = emit_fit(y_bet.get(), yp_bet.get(), n_sample, *FRy,false);
+    
+    //double dp = sqrt(emit_p(dp_p.get(), n_sample));
+
+    fit_results *FRp = new fit_results();
+    double dp = sqrt(emit_p_fit(dp_p.get(), n_sample,*FRp,false));
+    
     ion.set_emit_x(emit_x);
     ion.set_emit_y(emit_y);
     ion.set_dp_p(dp);
 
+    //Store the summary info for the bi-gaussian model
+    ion.set_fit_results_x(FRx);
+    ion.set_fit_results_y(FRy);   
+    ion.set_fit_results_s(FRp);
+    
     if(ion.bunched()) {
-        double sigma_s = sqrt(emit_p(ds.get(), n_sample));
+        fit_results* FRs = new fit_results();
+//        double sigma_s = sqrt(emit_p(ds.get(), n_sample));
+//        double sigma_s = sqrt(emit_p_fit(dp_p.get(),ds.get(), ring, n_sample,*FRp,*FRs,false));
+        double sigma_s = sqrt(emit_p_fit(ds.get(), n_sample,*FRs,false));
         ion.set_sigma_s(sigma_s);
+        ion.set_fit_results_s(FRs);
     }
+    
+    
+
+    
 }

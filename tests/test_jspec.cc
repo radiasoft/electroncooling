@@ -103,7 +103,7 @@ int both(){
     force_paras = ChooseForce(ForceFormula::PARKHOMCHUK);
 
     double rate_x, rate_y, rate_s;
-    ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x, rate_y, rate_s);
+    ecooling_rate(*ecool_paras, *force_paras, p_beam, cooler, e_beam, ring, rate_x,rate_y,rate_s);
     std::cout<<std::endl;
     std::cout<<"rate_x = "<<rate_x<<" rate_y = "<<rate_y<<" rate_s = "<<rate_s<<std::endl;
 
@@ -277,24 +277,23 @@ int ibs(){
 //  auto t1 = 0.001*std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 //  std::cout<<"IBS 3D integral: "<<t1<<std::endl;
 //
-//  std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
-
-    ibs_solver.rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
+    std::vector<double> r_ibs;
+    ibs_solver.rate(lattice, p_beam, r_ibs);
     std::cout<<std::endl;
-    std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
+    std::cout<<r_ibs[0]<<' '<<r_ibs[1]<<' '<<r_ibs[2]<<std::endl;
     
-    JSPEC_ASSERT_THROW(abs(rx_ibs - 0.000737069) < 1e-4);
-    JSPEC_ASSERT_THROW(abs(ry_ibs + 8.61496e-6) < 1e-6);
-    JSPEC_ASSERT_THROW(abs(rz_ibs - 0.000651936) < 1e-5);
+    JSPEC_ASSERT_THROW(abs(r_ibs[0] - 0.000737069) < 1e-4);
+    JSPEC_ASSERT_THROW(abs(r_ibs[1] + 8.61496e-6) < 1e-6);
+    JSPEC_ASSERT_THROW(abs(r_ibs[2] - 0.000651936) < 1e-5);
     
     // Test a different coefficient
     ibs_solver.set_k(0.2);
-    ibs_solver.rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
-    std::cout<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
+    ibs_solver.rate(lattice, p_beam, r_ibs);
+    std::cout<<r_ibs[0]<<' '<<r_ibs[1]<<' '<<r_ibs[2]<<std::endl;
 
-    JSPEC_ASSERT_THROW( abs(rx_ibs - 0.0006625) < 1e-4 );
-    JSPEC_ASSERT_THROW( abs(ry_ibs - 6.59534e-05) < 1e-6 );
-    JSPEC_ASSERT_THROW( abs(rz_ibs - 0.000651936) < 1e-5 );
+    JSPEC_ASSERT_THROW( abs(r_ibs[0] - 0.0006625) < 1e-4 );
+    JSPEC_ASSERT_THROW( abs(r_ibs[1] - 6.59534e-05) < 1e-6 );
+    JSPEC_ASSERT_THROW( abs(r_ibs[2] - 0.000651936) < 1e-5 );
     
     JSPEC_TEST_END();
     return 0;
@@ -568,10 +567,10 @@ int dynamicboth(){
     ibs_solver = new IBSSolver_Martini(nu, nv, nz, log_c, k);
 //            ibs_solver = new IBSSolver(nu, nv, nz);
 
-    double rx_ibs, ry_ibs, rz_ibs;
-    ibs_solver->rate(lattice, p_beam, rx_ibs, ry_ibs, rz_ibs);
-    std::cout<<"IBS rate: [1/s] "<<rx_ibs<<' '<<ry_ibs<<' '<<rz_ibs<<std::endl;
-    std::cout<<"Total rate: [1/s] "<<rx_ibs+rate_x<<' '<<ry_ibs+rate_y<<' '<<rz_ibs+rate_s<<std::endl<<std::endl;
+    std::vector<double> r_ibs;
+    ibs_solver->rate(lattice, p_beam, r_ibs);
+    std::cout<<"IBS rate: [1/s] "<<r_ibs[0]<<' '<<r_ibs[1]<<' '<<r_ibs[2]<<std::endl;
+    std::cout<<"Total rate: [1/s] "<<r_ibs[0]+rate_x<<' '<<r_ibs[1]+rate_y<<' '<<r_ibs[2]+rate_s<<std::endl<<std::endl;
 
 //                return 0;
 

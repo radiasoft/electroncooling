@@ -133,7 +133,7 @@ int update_beam(int i, Beam &ion, Ring &ring, Cooler &cooler, EBeam &ebeam, std:
         double ry = r_ibs.at(1) + r_ecool.at(1);
         double rs = r_ibs.at(2) + r_ecool.at(2);
 
-        //Calculate  new emittances
+        //Calculate new emittances
         emit_nx *= exp(rx*dt);
         emit_ny *= exp(ry*dt);
         dp *= dp*exp(rs*dt);
@@ -160,7 +160,7 @@ int update_beam(int i, Beam &ion, Ring &ring, Cooler &cooler, EBeam &ebeam, std:
         if(dynamic_paras->ecool()) {
              double freq = k_c*ion.beta()/ring.circ()*cooler.section_number();
              //restore the coordinates
-             restore_cord(t_cooler);
+             //restore_cord(t_cooler);
              //Adjust the frequency for bunched electron to coasting ion
              if(ebeam.bunched()&&(!ion.bunched())) {
                 adjust_freq(freq, ebeam);
@@ -173,7 +173,12 @@ int update_beam(int i, Beam &ion, Ring &ring, Cooler &cooler, EBeam &ebeam, std:
 
         //Apply ibs kicks
         if(dynamic_paras->ibs()) {
-            apply_ibs_kick(dt, ion, r_ibs);
+            if(ibs_solver->GetIBSModel() == IBSModel::BIGAUS){
+                apply_ibs_kick_DG(dt, ion, r_ibs);
+            }
+            else{
+                apply_ibs_kick(dt, ion, r_ibs);
+            }
         }
 
         move_particles(ion, ring);
@@ -233,7 +238,7 @@ int update_beam(int i, Beam &ion, Ring &ring, Cooler &cooler, EBeam &ebeam, std:
 //        adjust_disp(dpy, yp_bet.get(), dp_p.get(), yp.get(), n_sample);
 
         //update beam parameters
-        update_beam_parameters(ion);
+        update_beam_parameters(ion,ring);
         break;
     }
     case DynamicModel::TURN_BY_TURN : {
@@ -245,7 +250,7 @@ int update_beam(int i, Beam &ion, Ring &ring, Cooler &cooler, EBeam &ebeam, std:
         turn_by_turn_move_particles(ion, ring, cooler);
 
         //update beam parameters
-        update_beam_parameters(ion);
+        update_beam_parameters(ion,ring);
         break;
     }
     default: {
@@ -402,7 +407,7 @@ bool file_exists(string fileName)
 
 int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
     //Create temporary variables for expansion rate and beam macro-parameters
-    std::vector<double> r_ibs = {0,0,0};
+    std::vector<double> r_ibs = {0,0,0,0,0,0}; //Expanded for bi-gaussian IBS
     std::vector<double> r_ecool = {0,0,0};
     std::vector<double> r = {0,0,0};
     std::vector<double> emit = {0,0,0,0} ; //emit_x, emit_y, dp_p, sigma_s
@@ -457,19 +462,22 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     //Store copies of initial conditions for CalculateForce() later
     EcoolRateParas ecool_paras_tmp(*ecool_paras); //Do we need to copy this one?
-    //ForceParas force_paras_tmp(*force_paras); 
+    //ForceParas force_paras_tmp(*force_paras);
     Beam ion_tmp(ion);
     Cooler cooler_tmp(cooler);//Copy constructor not written
     EBeam ebeam_tmp(ebeam);
     //make a copy of ne?
-    
+
+    //Call this before IBS rate is called
+    update_beam_parameters(ion,ring);
 
     //Start tracking
     std::cout<<"Start dynamic simulation ... "<<std::endl;
     dynamic_flag = true;
 
     for(int i=0; i<n_step+1; ++i) {
-        if (ion_save_itvl>0 && i%ion_save_itvl==0 && dynamic_paras->model()!=DynamicModel::RMS)
+      if (ion_save_itvl>0 && i%ion_save_itvl==0 && dynamic_paras->model()!=DynamicModel::RMS)
+        //if (ion_save_itvl>0 && i%ion_save_itvl==0)
             save_ions_sdds(dynamic_paras->n_sample(), "ions"+std::to_string(i)+".txt");
 
         //record
@@ -481,8 +489,9 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
         //Rate calculation
         if(ibs) {
             assert(ibs_solver != nullptr);
-            ibs_solver->rate(*ring.lattice_, ion, r_ibs.at(0), r_ibs.at(1), r_ibs.at(2));
+            ibs_solver->rate(*ring.lattice_, ion, r_ibs);
         }
+        
         if(ecool) {
             ecooling_rate(*ecool_paras, *force_paras, ion, cooler, ebeam, ring, r_ecool.at(0), r_ecool.at(1), r_ecool.at(2));
         }
@@ -533,17 +542,15 @@ int dynamic(Beam &ion, Cooler &cooler, EBeam &ebeam, Ring &ring) {
 
     //Now, calculate the force as a function of velocity for plotting.
     // For this we need the initial conditions before the dynamic calculation.
-    
+
    // Skip this calculation if we're in the testing suite
-    if(ecool){// && !dynamic_paras->test() && 
+    if(ecool){// && !dynamic_paras->test() &&
        //       ion.bunched() && ebeam.bunched()){
        CalculateForce(ecool_paras_tmp, *force_paras, ion_tmp, cooler_tmp, ebeam_tmp, ring);
        save_forces_sdds(dynamic_paras->n_sample(), "force_table.txt");
     }
-    
+
     dynamic_flag = false;
     std::cout<<"Finished dynamic simulation."<<std::endl;
     return 0;
 }
-
-
